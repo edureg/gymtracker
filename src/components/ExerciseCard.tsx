@@ -18,12 +18,13 @@ interface Props {
   canMoveDown: boolean;
   onDeactivate: () => void;
   onChangeSets: (delta: number) => void;
+  onUpdateExerciseNotes: (notes: string) => void;
 }
 
 export default function ExerciseCard({
   exercise, dayLog, currentDate, isEditMode,
   onUpdateLog, onToggleSet, onUpdateNote,
-  onMoveUp, onMoveDown, canMoveUp, canMoveDown, onDeactivate, onChangeSets
+  onMoveUp, onMoveDown, canMoveUp, canMoveDown, onDeactivate, onChangeSets, onUpdateExerciseNotes
 }: Props) {
   
   const lastSession = getLastSessionData(exercise.id, currentDate);
@@ -142,7 +143,17 @@ export default function ExerciseCard({
           )}
         </div>
         
-        {exercise.notes && <div className="text-sm text-gray-400 leading-relaxed">{exercise.notes}</div>}
+        {isEditMode ? (
+          <input 
+            type="text" 
+            value={exercise.notes || ''}
+            onChange={(e) => onUpdateExerciseNotes(e.target.value)}
+            placeholder="Aclaraciones del ejercicio (ej. en banco scott)..."
+            className="w-full bg-black/30 border border-white/10 rounded-lg py-1.5 px-2 text-sm text-gray-400 focus:outline-none focus:border-emerald-400 mb-1 mt-1"
+          />
+        ) : (
+          exercise.notes && <div className="text-sm text-gray-400 leading-relaxed">{exercise.notes}</div>
+        )}
         {lastSession && <div className="text-xs text-emerald-400 mt-1 italic opacity-80">Ult. vez: {lastSession.date}</div>}
         
         <div className="relative mt-3">

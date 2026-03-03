@@ -85,7 +85,7 @@ export default function TimerPanel({ onClose }: { onClose: () => void }) {
   const toggleStopwatch = () => {
     if (!swIsRunning && !swIsCountingDown) {
       if (swTime === 0) {
-        setSwCountdown(5);
+        setSwCountdown(10);
         setSwIsCountingDown(true);
       } else {
         setSwIsRunning(true);
