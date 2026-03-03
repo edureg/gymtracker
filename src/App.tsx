@@ -175,9 +175,9 @@ export default function App() {
     <div className="max-w-[600px] mx-auto pb-24 px-4 pt-5">
       <header className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
-          Gym Tracker <span className="text-[0.6em] text-gray-400">v9.2</span>
+          Gym Tracker <span className="text-[0.6em] text-gray-400">v9.3</span>
         </h1>
-        <div className="text-[0.7em] text-emerald-400">React v9.2 OK</div>
+        <div className="text-[0.7em] text-emerald-400">React v9.3 OK</div>
       </header>
 
       <div className="flex items-center gap-3 mb-6 bg-slate-900/70 p-3 rounded-2xl backdrop-blur-md border border-white/10">
