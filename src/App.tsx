@@ -16,13 +16,15 @@ export default function App() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
   useEffect(() => {
     setRoutineConfig(loadRoutineConfig());
-  }, []);
+  }, [refreshTrigger]);
 
   useEffect(() => {
     setDayLog(getDayLog(currentDate));
-  }, [currentDate]);
+  }, [currentDate, refreshTrigger]);
 
   const changeDate = (days: number) => {
     const newDate = new Date(currentDate);
@@ -43,8 +45,11 @@ export default function App() {
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      importCSV(file, routineConfig, () => {
-        setDayLog(getDayLog(currentDate));
+      importCSV(file, routineConfig, (newConfig) => {
+        if (newConfig) {
+          setRoutineConfig(newConfig);
+        }
+        setRefreshTrigger(prev => prev + 1);
         if (fileInputRef.current) fileInputRef.current.value = '';
       });
     }
@@ -121,7 +126,15 @@ export default function App() {
   };
 
   const addExercise = (exercise: Exercise) => {
-    const newExercises = [...(currentDayRoutine.exercises || []), exercise];
+    const newExercises = [...(currentDayRoutine.exercises || [])];
+    const existingIdx = newExercises.findIndex(e => e.id === exercise.id);
+    
+    if (existingIdx >= 0) {
+      newExercises[existingIdx] = { ...exercise, isActive: true };
+    } else {
+      newExercises.push(exercise);
+    }
+
     const newConfig = {
       ...routineConfig,
       [dayIndex]: { ...currentDayRoutine, exercises: newExercises }
@@ -171,13 +184,27 @@ export default function App() {
   let dateStr = currentDate.toLocaleDateString('es-AR', dateOptions);
   dateStr = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
 
+  // Compute Exercise Bank (all unique exercises across all days)
+  const allExercisesMap = new Map<string, Exercise>();
+  Object.values(routineConfig).forEach(day => {
+    day.exercises?.forEach(ex => {
+      if (!allExercisesMap.has(ex.id)) {
+        allExercisesMap.set(ex.id, ex);
+      }
+    });
+  });
+  
+  // Filter out exercises that are already active TODAY
+  const activeIdsToday = new Set(activeExercises.map(e => e.id));
+  const exerciseBank = Array.from(allExercisesMap.values()).filter(ex => !activeIdsToday.has(ex.id));
+
   return (
     <div className="max-w-[600px] mx-auto pb-24 px-4 pt-5">
       <header className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
-          Gym Tracker <span className="text-[0.6em] text-gray-400">v9.3</span>
+          Gym Tracker <span className="text-[0.6em] text-gray-400">v9.5</span>
         </h1>
-        <div className="text-[0.7em] text-emerald-400">React v9.3 OK</div>
+        <div className="text-[0.7em] text-emerald-400">React v9.5 OK</div>
       </header>
 
       <div className="flex items-center gap-3 mb-6 bg-slate-900/70 p-3 rounded-2xl backdrop-blur-md border border-white/10">
@@ -297,6 +324,7 @@ export default function App() {
         <AddExerciseModal 
           onClose={() => setIsAddModalOpen(false)} 
           onAdd={addExercise} 
+          exerciseBank={exerciseBank}
         />
       )}
     </div>

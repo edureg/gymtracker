@@ -44,7 +44,12 @@ export function exportCSV(currentRoutine: RoutineConfig) {
         return;
     }
 
-    const csvContent = header + "\n" + csvRows.join("\n");
+    let csvContent = header + "\n" + csvRows.join("\n");
+    
+    // Append routine config
+    csvContent += "\n---ROUTINE_CONFIG---\n";
+    csvContent += JSON.stringify(currentRoutine);
+
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
@@ -57,11 +62,17 @@ export function exportCSV(currentRoutine: RoutineConfig) {
     document.body.removeChild(link);
 }
 
-export function importCSV(file: File, currentRoutine: RoutineConfig, onComplete: () => void) {
+export function importCSV(file: File, currentRoutine: RoutineConfig, onComplete: (newConfig?: RoutineConfig) => void) {
     const reader = new FileReader();
     reader.onload = function (e) {
         const text = e.target?.result as string;
-        const lines = text.split('\n');
+        
+        // Split text to separate logs from config
+        const parts = text.split("\n---ROUTINE_CONFIG---\n");
+        const logsText = parts[0];
+        const configText = parts.length > 1 ? parts[1] : null;
+
+        const lines = logsText.split('\n');
 
         if (lines.length < 2) {
             alert('El archivo no parece ser un CSV válido o está vacío.');
@@ -132,8 +143,18 @@ export function importCSV(file: File, currentRoutine: RoutineConfig, onComplete:
             }
         }
 
-        alert(`¡Importación finalizada! Se restauraron o añadieron ${importedCount} series al historial.`);
-        onComplete();
+        let newConfig: RoutineConfig | undefined;
+        if (configText) {
+            try {
+                newConfig = JSON.parse(configText.trim());
+                localStorage.setItem('gym_routine_config', JSON.stringify(newConfig));
+            } catch (err) {
+                console.warn("No se pudo parsear la configuración de la rutina", err);
+            }
+        }
+
+        alert(`¡Importación finalizada! Se restauraron o añadieron ${importedCount} series al historial${newConfig ? ' y se restauró la configuración de tu rutina' : ''}.`);
+        onComplete(newConfig);
     };
 
     reader.onerror = function () {

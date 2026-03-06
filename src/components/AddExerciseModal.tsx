@@ -4,13 +4,35 @@ import { Exercise } from '../types';
 interface Props {
   onClose: () => void;
   onAdd: (ex: Exercise) => void;
+  exerciseBank: Exercise[];
 }
 
-export default function AddExerciseModal({ onClose, onAdd }: Props) {
+export default function AddExerciseModal({ onClose, onAdd, exerciseBank }: Props) {
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [notes, setNotes] = useState('');
   const [sets, setSets] = useState(4);
   const [hasTime, setHasTime] = useState(false);
+
+  const handleSelectFromBank = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const id = e.target.value;
+    if (!id) {
+      setSelectedId(null);
+      setName('');
+      setNotes('');
+      setSets(4);
+      setHasTime(false);
+      return;
+    }
+    const ex = exerciseBank.find(x => x.id === id);
+    if (ex) {
+      setSelectedId(ex.id);
+      setName(ex.name);
+      setNotes(ex.notes || '');
+      setSets(ex.sets);
+      setHasTime(ex.hasTime || false);
+    }
+  };
 
   const handleAdd = () => {
     if (!name.trim()) {
@@ -19,7 +41,7 @@ export default function AddExerciseModal({ onClose, onAdd }: Props) {
     }
     
     onAdd({
-      id: 'custom_' + Date.now(),
+      id: selectedId || 'custom_' + Date.now(),
       name: name.trim(),
       notes: notes.trim(),
       sets,
@@ -29,10 +51,29 @@ export default function AddExerciseModal({ onClose, onAdd }: Props) {
     onClose();
   };
 
+  const sortedBank = [...exerciseBank].sort((a, b) => a.name.localeCompare(b.name));
+
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[1000] p-4">
-      <div className="bg-slate-900 border border-white/10 rounded-2xl p-6 w-full max-w-[400px]">
-        <h3 className="text-xl font-semibold text-emerald-400 mb-5">Añadir Nuevo Ejercicio</h3>
+      <div className="bg-slate-900 border border-white/10 rounded-2xl p-6 w-full max-w-[400px] max-h-[90vh] overflow-y-auto">
+        <h3 className="text-xl font-semibold text-emerald-400 mb-5">Añadir Ejercicio</h3>
+        
+        {sortedBank.length > 0 && (
+          <div className="mb-6 p-4 bg-emerald-400/10 border border-emerald-400/20 rounded-xl">
+            <label className="block text-sm text-emerald-400 mb-2 font-semibold">Repositorio (Ejercicios Previos)</label>
+            <select 
+              className="w-full bg-black/50 border border-emerald-400/30 rounded-lg p-2.5 text-white focus:outline-none focus:border-emerald-400"
+              onChange={handleSelectFromBank}
+              value={selectedId || ''}
+            >
+              <option value="">-- Crear nuevo ejercicio --</option>
+              {sortedBank.map(ex => (
+                <option key={ex.id} value={ex.id}>{ex.name}</option>
+              ))}
+            </select>
+            <p className="text-xs text-emerald-400/70 mt-2">Selecciona un ejercicio para autocompletar y mantener su historial.</p>
+          </div>
+        )}
         
         <div className="space-y-4">
           <div>
@@ -47,7 +88,7 @@ export default function AddExerciseModal({ onClose, onAdd }: Props) {
           </div>
           
           <div>
-            <label className="block text-sm text-gray-400 mb-1.5">Observaciones (Opcional)</label>
+            <label className="block text-sm text-gray-400 mb-1.5">Aclaraciones (Opcional)</label>
             <input 
               type="text" 
               value={notes}
