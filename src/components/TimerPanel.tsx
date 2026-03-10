@@ -11,7 +11,8 @@ export default function TimerPanel({ onClose }: { onClose: () => void }) {
   // Stopwatch state
   const [swTime, setSwTime] = useState(0);
   const [swIsRunning, setSwIsRunning] = useState(false);
-  const [swCountdown, setSwCountdown] = useState(0);
+  const [prepTime, setPrepTime] = useState(15);
+  const [swCountdown, setSwCountdown] = useState(15);
   const [swIsCountingDown, setSwIsCountingDown] = useState(false);
 
   useEffect(() => {
@@ -85,8 +86,12 @@ export default function TimerPanel({ onClose }: { onClose: () => void }) {
   const toggleStopwatch = () => {
     if (!swIsRunning && !swIsCountingDown) {
       if (swTime === 0) {
-        setSwCountdown(10);
-        setSwIsCountingDown(true);
+        if (prepTime > 0) {
+          setSwCountdown(prepTime);
+          setSwIsCountingDown(true);
+        } else {
+          setSwIsRunning(true);
+        }
       } else {
         setSwIsRunning(true);
       }
@@ -147,6 +152,8 @@ export default function TimerPanel({ onClose }: { onClose: () => void }) {
           <div className="text-8xl font-bold tabular-nums text-center mb-12 text-white drop-shadow-[0_0_15px_rgba(52,211,153,0.4)] tracking-tight relative">
             {swIsCountingDown ? (
               <span className="text-yellow-400 text-7xl">Prep: {swCountdown}s</span>
+            ) : swTime === 0 ? (
+              <span className="text-yellow-400 text-7xl">Prep: {prepTime}s</span>
             ) : (
               formatTime(swTime)
             )}
@@ -154,10 +161,30 @@ export default function TimerPanel({ onClose }: { onClose: () => void }) {
           
           <div className="flex items-center justify-center gap-6 mb-12">
             <button 
+              onClick={() => {
+                if (swIsCountingDown) setSwCountdown(Math.max(0, swCountdown - 5));
+                else setPrepTime(Math.max(0, prepTime - 5));
+              }} 
+              className={`bg-white/10 text-white rounded-2xl px-6 py-4 font-semibold hover:bg-white/20 text-lg transition-colors ${(swTime === 0 || swIsCountingDown) ? '' : 'invisible'}`}
+            >
+              -5s
+            </button>
+
+            <button 
               onClick={toggleStopwatch} 
               className={`w-24 h-24 rounded-full flex items-center justify-center text-black shadow-lg transition-transform active:scale-95 ${(swIsRunning || swIsCountingDown) ? 'bg-red-500 text-white shadow-red-500/30' : 'bg-emerald-400 shadow-emerald-400/30'}`}
             >
               {(swIsRunning || swIsCountingDown) ? <Pause className="w-10 h-10 fill-current" /> : <Play className="w-10 h-10 fill-current ml-2" />}
+            </button>
+
+            <button 
+              onClick={() => {
+                if (swIsCountingDown) setSwCountdown(swCountdown + 5);
+                else setPrepTime(prepTime + 5);
+              }} 
+              className={`bg-white/10 text-white rounded-2xl px-6 py-4 font-semibold hover:bg-white/20 text-lg transition-colors ${(swTime === 0 || swIsCountingDown) ? '' : 'invisible'}`}
+            >
+              +5s
             </button>
           </div>
           
