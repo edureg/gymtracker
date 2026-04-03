@@ -89,6 +89,7 @@ export default function ExerciseCard({
             )}
 
             <button 
+              tabIndex={-1}
               onClick={() => onToggleSet(i)}
               className={`w-9 h-9 rounded-full border-2 flex items-center justify-center transition-all ${
                 isDone 
@@ -119,6 +120,7 @@ export default function ExerciseCard({
           {isEditMode && (
             <div className="flex items-center gap-1">
               <button 
+                tabIndex={-1}
                 onClick={onMoveUp} 
                 disabled={!canMoveUp}
                 className="p-1.5 text-gray-400 hover:text-white disabled:opacity-30"
@@ -126,6 +128,7 @@ export default function ExerciseCard({
                 <ArrowUp className="w-4 h-4" />
               </button>
               <button 
+                tabIndex={-1}
                 onClick={onMoveDown} 
                 disabled={!canMoveDown}
                 className="p-1.5 text-gray-400 hover:text-white disabled:opacity-30"
@@ -133,6 +136,7 @@ export default function ExerciseCard({
                 <ArrowDown className="w-4 h-4" />
               </button>
               <button 
+                tabIndex={-1}
                 onClick={onDeactivate}
                 className="p-1.5 text-red-500 hover:bg-red-500/10 rounded ml-2"
                 title="Desactivar Ejercicio"
@@ -170,11 +174,11 @@ export default function ExerciseCard({
 
       {isEditMode && (
         <div className="flex items-center justify-center gap-3 mb-4">
-          <button onClick={() => onChangeSets(-1)} className="w-8 h-8 bg-black/30 border border-white/10 rounded-md flex items-center justify-center hover:bg-white/10">
+          <button tabIndex={-1} onClick={() => onChangeSets(-1)} className="w-8 h-8 bg-black/30 border border-white/10 rounded-md flex items-center justify-center hover:bg-white/10">
             <Minus className="w-4 h-4" />
           </button>
           <span className="text-sm text-gray-400">{exercise.sets} Series</span>
-          <button onClick={() => onChangeSets(1)} className="w-8 h-8 bg-black/30 border border-white/10 rounded-md flex items-center justify-center hover:bg-white/10">
+          <button tabIndex={-1} onClick={() => onChangeSets(1)} className="w-8 h-8 bg-black/30 border border-white/10 rounded-md flex items-center justify-center hover:bg-white/10">
             <Plus className="w-4 h-4" />
           </button>
         </div>

@@ -26,6 +26,28 @@ export default function App() {
     setDayLog(getDayLog(currentDate));
   }, [currentDate, refreshTrigger]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter' && e.target instanceof HTMLElement) {
+        if (e.target.tagName.toLowerCase() === 'textarea') {
+          return; // Allow newlines in textareas
+        }
+        
+        const focusableElements = Array.from(document.querySelectorAll('input, textarea, select'))
+          .filter(el => !(el as HTMLInputElement).disabled && (el as HTMLElement).tabIndex !== -1);
+        
+        const index = focusableElements.indexOf(e.target as HTMLElement);
+        if (index > -1 && index < focusableElements.length - 1) {
+          e.preventDefault();
+          (focusableElements[index + 1] as HTMLElement).focus();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const changeDate = (days: number) => {
     const newDate = new Date(currentDate);
     newDate.setDate(newDate.getDate() + days);
@@ -208,15 +230,15 @@ export default function App() {
     <div className="max-w-[600px] mx-auto pb-24 px-4 pt-5">
       <header className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
-          Gym Tracker <span className="text-[0.6em] text-gray-400">v9.7</span>
+          Gym Tracker <span className="text-[0.6em] text-gray-400">v9.8</span>
         </h1>
-        <div className="text-[0.7em] text-emerald-400">React v9.7 OK</div>
+        <div className="text-[0.7em] text-emerald-400">React v9.8 OK</div>
       </header>
 
       <div className="flex items-center gap-3 mb-6 bg-slate-900/70 p-3 rounded-2xl backdrop-blur-md border border-white/10">
-        <button onClick={() => changeDate(-1)} className="p-2 text-emerald-400 hover:bg-white/5 rounded-lg"><ChevronLeft /></button>
+        <button tabIndex={-1} onClick={() => changeDate(-1)} className="p-2 text-emerald-400 hover:bg-white/5 rounded-lg"><ChevronLeft /></button>
         <div className="flex-grow text-center font-semibold text-lg">{dateStr}</div>
-        <button onClick={() => changeDate(1)} className="p-2 text-emerald-400 hover:bg-white/5 rounded-lg"><ChevronRight /></button>
+        <button tabIndex={-1} onClick={() => changeDate(1)} className="p-2 text-emerald-400 hover:bg-white/5 rounded-lg"><ChevronRight /></button>
       </div>
 
       <div className="text-sm text-gray-400 mb-6">{currentDayRoutine.title}</div>
@@ -268,6 +290,7 @@ export default function App() {
                 <div key={ex.id} className="flex items-center justify-between bg-black/30 p-3 rounded-lg border border-white/5">
                   <span className="text-gray-300">{ex.name}</span>
                   <button 
+                    tabIndex={-1}
                     onClick={() => toggleExerciseActive(ex.id, true)}
                     className="text-emerald-400 text-sm px-3 py-1 bg-emerald-400/10 rounded-md hover:bg-emerald-400/20"
                   >
@@ -328,6 +351,7 @@ export default function App() {
 
       {isEditMode && (
         <button 
+          tabIndex={-1}
           onClick={() => setIsAddModalOpen(true)}
           className="w-full mt-5 bg-emerald-400 text-black font-semibold py-3 rounded-xl flex items-center justify-center gap-2 shadow-[0_0_10px_rgba(52,211,153,0.4)]"
         >
@@ -336,6 +360,7 @@ export default function App() {
       )}
 
       <button 
+        tabIndex={-1}
         onClick={() => setIsEditMode(!isEditMode)}
         className={`w-full mt-4 py-2.5 rounded-lg border flex items-center justify-center gap-2 transition-colors ${
           isEditMode 
@@ -350,19 +375,21 @@ export default function App() {
         <div className="mt-5 text-center">
           <label className="w-full py-2.5 rounded-lg border border-emerald-400 text-emerald-400 flex items-center justify-center gap-2 cursor-pointer hover:bg-emerald-400/10 transition-colors">
             <Upload className="w-4 h-4" /> Importar CSV de Respaldo
-            <input type="file" accept=".csv" className="hidden" ref={fileInputRef} onChange={handleImport} />
+            <input tabIndex={-1} type="file" accept=".csv" className="hidden" ref={fileInputRef} onChange={handleImport} />
           </label>
         </div>
       )}
 
       <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3">
         <button 
+          tabIndex={-1}
           onClick={() => setIsTimerOpen(!isTimerOpen)}
           className="w-14 h-14 rounded-full bg-gray-300 text-black flex items-center justify-center shadow-lg hover:scale-95 transition-transform"
         >
           <TimerIcon className="w-6 h-6" />
         </button>
         <button 
+          tabIndex={-1}
           onClick={handleExport}
           className="w-14 h-14 rounded-full bg-emerald-400 text-black flex items-center justify-center shadow-[0_4px_15px_rgba(52,211,153,0.4)] hover:scale-95 transition-transform"
         >
