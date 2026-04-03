@@ -29,5 +29,9 @@ export type ExerciseLog = {
 
 export type DayLog = {
   _day_note_?: string;
+  calories?: string;
+  duration?: string;
+  avgHeartRate?: string;
+  maxHeartRate?: string;
   [exId: string]: any;
 };

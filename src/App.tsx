@@ -38,6 +38,12 @@ export default function App() {
     saveDayLog(currentDate, newLog);
   };
 
+  const handleDayMetricChange = (field: string, value: string) => {
+    const newLog = { ...dayLog, [field]: value };
+    setDayLog(newLog);
+    saveDayLog(currentDate, newLog);
+  };
+
   const handleExport = () => {
     exportCSV(routineConfig);
   };
@@ -202,9 +208,9 @@ export default function App() {
     <div className="max-w-[600px] mx-auto pb-24 px-4 pt-5">
       <header className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
-          Gym Tracker <span className="text-[0.6em] text-gray-400">v9.6</span>
+          Gym Tracker <span className="text-[0.6em] text-gray-400">v9.7</span>
         </h1>
-        <div className="text-[0.7em] text-emerald-400">React v9.6 OK</div>
+        <div className="text-[0.7em] text-emerald-400">React v9.7 OK</div>
       </header>
 
       <div className="flex items-center gap-3 mb-6 bg-slate-900/70 p-3 rounded-2xl backdrop-blur-md border border-white/10">
@@ -272,6 +278,52 @@ export default function App() {
             </div>
           </div>
         )}
+      </div>
+
+      <div className="mt-8 bg-slate-900/70 rounded-2xl p-5 border border-white/10 backdrop-blur-md">
+        <h3 className="text-lg font-semibold mb-4 text-emerald-400">Resumen del Entrenamiento</h3>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">Calorías (kcal)</label>
+            <input 
+              type="number" 
+              value={dayLog.calories || ''}
+              onChange={(e) => handleDayMetricChange('calories', e.target.value)}
+              placeholder="Ej: 953"
+              className="w-full bg-black/40 border border-white/20 rounded-lg text-white text-sm py-2 px-3 focus:outline-none focus:border-emerald-400"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">Duración (HH:MM:SS)</label>
+            <input 
+              type="text" 
+              value={dayLog.duration || ''}
+              onChange={(e) => handleDayMetricChange('duration', e.target.value)}
+              placeholder="Ej: 01:20:20"
+              className="w-full bg-black/40 border border-white/20 rounded-lg text-white text-sm py-2 px-3 focus:outline-none focus:border-emerald-400"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">FC Promedio (ppm)</label>
+            <input 
+              type="number" 
+              value={dayLog.avgHeartRate || ''}
+              onChange={(e) => handleDayMetricChange('avgHeartRate', e.target.value)}
+              placeholder="Ej: 117"
+              className="w-full bg-black/40 border border-white/20 rounded-lg text-white text-sm py-2 px-3 focus:outline-none focus:border-emerald-400"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">FC Máxima (ppm)</label>
+            <input 
+              type="number" 
+              value={dayLog.maxHeartRate || ''}
+              onChange={(e) => handleDayMetricChange('maxHeartRate', e.target.value)}
+              placeholder="Ej: 152"
+              className="w-full bg-black/40 border border-white/20 rounded-lg text-white text-sm py-2 px-3 focus:outline-none focus:border-emerald-400"
+            />
+          </div>
+        </div>
       </div>
 
       {isEditMode && (

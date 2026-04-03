@@ -3,7 +3,7 @@ import { DEFAULT_ROUTINE } from '../constants';
 
 export function exportCSV(currentRoutine: RoutineConfig) {
     let csvRows: string[] = [];
-    const header = "Fecha,Ejercicio,Serie,Repeticiones,Peso (kg),Tiempo (s),Notas,Nota General";
+    const header = "Fecha,Ejercicio,Serie,Repeticiones,Peso (kg),Tiempo (s),Notas,Nota General,Calorías,Duración,FC Promedio,FC Máxima";
 
     const keys = Object.keys(localStorage)
         .filter(k => k.startsWith('gym_log_'))
@@ -15,9 +15,13 @@ export function exportCSV(currentRoutine: RoutineConfig) {
 
         const dayNoteRaw = data._day_note_ || '';
         const dayNoteStr = dayNoteRaw.replace(/"/g, '""');
+        const calories = data.calories || '';
+        const duration = data.duration || '';
+        const avgHeartRate = data.avgHeartRate || '';
+        const maxHeartRate = data.maxHeartRate || '';
 
         Object.keys(data).forEach(exId => {
-            if (exId === '_day_note_') return;
+            if (exId === '_day_note_' || exId === 'calories' || exId === 'duration' || exId === 'avgHeartRate' || exId === 'maxHeartRate') return;
             const sets = data[exId];
             let exName = exId;
 
@@ -33,7 +37,7 @@ export function exportCSV(currentRoutine: RoutineConfig) {
                 const s = sets[setIdx];
                 const noteStr = sets.note ? sets.note.replace(/"/g, '""') : '';
                 if (s.reps || s.weight || s.time || s.done) {
-                    csvRows.push(`${dateStr},"${exName}",${setIdx},${s.reps || 0},${s.weight || 0},${s.time || 0},"${noteStr}","${dayNoteStr}"`);
+                    csvRows.push(`${dateStr},"${exName}",${setIdx},${s.reps || 0},${s.weight || 0},${s.time || 0},"${noteStr}","${dayNoteStr}","${calories}","${duration}","${avgHeartRate}","${maxHeartRate}"`);
                 }
             });
         });
@@ -99,6 +103,10 @@ export function importCSV(file: File, currentRoutine: RoutineConfig, onComplete:
                 const time = matchArray.length >= 6 ? parseInt(matchArray[5]) : 0;
                 const note = matchArray.length >= 7 ? matchArray[6] : '';
                 const dayNote = matchArray.length >= 8 ? matchArray[7] : '';
+                const calories = matchArray.length >= 9 ? matchArray[8] : '';
+                const duration = matchArray.length >= 10 ? matchArray[9] : '';
+                const avgHeartRate = matchArray.length >= 11 ? matchArray[10] : '';
+                const maxHeartRate = matchArray.length >= 12 ? matchArray[11] : '';
 
                 let exId: string | null = null;
                 [0, 1, 2, 3, 4, 5, 6].forEach(d => {
@@ -128,6 +136,10 @@ export function importCSV(file: File, currentRoutine: RoutineConfig, onComplete:
                 if (dayNote && !data._day_note_) {
                     data._day_note_ = dayNote;
                 }
+                if (calories && !data.calories) data.calories = calories;
+                if (duration && !data.duration) data.duration = duration;
+                if (avgHeartRate && !data.avgHeartRate) data.avgHeartRate = avgHeartRate;
+                if (maxHeartRate && !data.maxHeartRate) data.maxHeartRate = maxHeartRate;
 
                 if (!existing.reps && !existing.weight && !existing.time && !existing.done) {
                     data[exId][setIdx] = {
