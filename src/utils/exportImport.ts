@@ -66,7 +66,75 @@ export function exportCSV(currentRoutine: RoutineConfig) {
     document.body.removeChild(link);
 }
 
-export function importCSV(file: File, currentRoutine: RoutineConfig, onComplete: (newConfig?: RoutineConfig) => void) {
+export function exportJSON(currentRoutine: RoutineConfig) {
+    const dataToExport: any = {
+        version: "v9.10",
+        routine: currentRoutine,
+        logs: {}
+    };
+
+    const keys = Object.keys(localStorage).filter(k => k.startsWith('gym_log_'));
+    keys.forEach(key => {
+        const dateStr = key.replace('gym_log_', '');
+        dataToExport.logs[dateStr] = JSON.parse(localStorage.getItem(key) || '{}');
+    });
+
+    const jsonStr = JSON.stringify(dataToExport, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+
+    link.setAttribute("href", url);
+    link.setAttribute("download", `gym_export_${new Date().toISOString().split('T')[0]}.json`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+export function importFile(file: File, currentRoutine: RoutineConfig, onComplete: (newConfig?: RoutineConfig) => void) {
+    if (file.name.endsWith('.json')) {
+        importJSON(file, currentRoutine, onComplete);
+    } else {
+        importCSV(file, currentRoutine, onComplete);
+    }
+}
+
+function importJSON(file: File, currentRoutine: RoutineConfig, onComplete: (newConfig?: RoutineConfig) => void) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const text = e.target?.result as string;
+            const parsed = JSON.parse(text);
+            
+            let logsCount = 0;
+            if (parsed.logs) {
+                Object.keys(parsed.logs).forEach(dateStr => {
+                    localStorage.setItem(`gym_log_${dateStr}`, JSON.stringify(parsed.logs[dateStr]));
+                    logsCount++;
+                });
+            }
+
+            let newConfig: RoutineConfig | undefined;
+            if (parsed.routine) {
+                newConfig = parsed.routine;
+                localStorage.setItem('gym_routine_config', JSON.stringify(newConfig));
+            }
+
+            alert(`¡Importación JSON finalizada! Se restauraron ${logsCount} días de historial${newConfig ? ' y la configuración de tu rutina' : ''}.`);
+            onComplete(newConfig);
+        } catch (err) {
+            console.error(err);
+            alert('Error al procesar el archivo JSON. Puede que esté corrupto o sea inválido.');
+        }
+    };
+    reader.onerror = function() {
+        alert('Error al leer el archivo JSON.');
+    };
+    reader.readAsText(file);
+}
+
+function importCSV(file: File, currentRoutine: RoutineConfig, onComplete: (newConfig?: RoutineConfig) => void) {
     const reader = new FileReader();
     reader.onload = function (e) {
         const text = e.target?.result as string;

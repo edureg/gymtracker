@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, ChevronRight, PenLine, Plus, Unlock, Lock, Download, Upload, Timer as TimerIcon, History } from 'lucide-react';
+import { ChevronLeft, ChevronRight, PenLine, Plus, Unlock, Lock, Download, Upload, Timer as TimerIcon, History, X } from 'lucide-react';
 import { RoutineConfig, DayLog, Exercise } from './types';
 import { loadRoutineConfig, saveRoutineConfig, getDayLog, saveDayLog, getLastDayMetrics } from './utils/storage';
-import { exportCSV, importCSV } from './utils/exportImport';
+import { exportCSV, exportJSON, importFile } from './utils/exportImport';
 import ExerciseCard from './components/ExerciseCard';
 import TimerPanel from './components/TimerPanel';
 import AddExerciseModal from './components/AddExerciseModal';
@@ -14,6 +14,7 @@ export default function App() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [isTimerOpen, setIsTimerOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -69,13 +70,23 @@ export default function App() {
   };
 
   const handleExport = () => {
-    exportCSV(routineConfig);
+    setIsExportModalOpen(true);
+  };
+
+  const executeExport = (type: 'csv' | 'json' | 'both') => {
+    if (type === 'csv' || type === 'both') {
+      exportCSV(routineConfig);
+    }
+    if (type === 'json' || type === 'both') {
+      exportJSON(routineConfig);
+    }
+    setIsExportModalOpen(false);
   };
 
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      importCSV(file, routineConfig, (newConfig) => {
+      importFile(file, routineConfig, (newConfig) => {
         if (newConfig) {
           setRoutineConfig(newConfig);
         }
@@ -232,9 +243,9 @@ export default function App() {
     <div className="max-w-[600px] mx-auto pb-24 px-4 pt-5">
       <header className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
-          Gym Tracker <span className="text-[0.6em] text-gray-400">v9.9</span>
+          Gym Tracker <span className="text-[0.6em] text-gray-400">v9.10</span>
         </h1>
-        <div className="text-[0.7em] text-emerald-400">React v9.9 OK</div>
+        <div className="text-[0.7em] text-emerald-400">React v9.10 OK</div>
       </header>
 
       <div className="flex items-center gap-3 mb-6 bg-slate-900/70 p-3 rounded-2xl backdrop-blur-md border border-white/10">
@@ -396,8 +407,8 @@ export default function App() {
       {isEditMode && (
         <div className="mt-5 text-center">
           <label className="w-full py-2.5 rounded-lg border border-emerald-400 text-emerald-400 flex items-center justify-center gap-2 cursor-pointer hover:bg-emerald-400/10 transition-colors">
-            <Upload className="w-4 h-4" /> Importar CSV de Respaldo
-            <input tabIndex={-1} type="file" accept=".csv" className="hidden" ref={fileInputRef} onChange={handleImport} />
+            <Upload className="w-4 h-4" /> Importar de Respaldo (CSV/JSON)
+            <input tabIndex={-1} type="file" accept=".csv,.json" className="hidden" ref={fileInputRef} onChange={handleImport} />
           </label>
         </div>
       )}
@@ -418,6 +429,45 @@ export default function App() {
           <Download className="w-6 h-6" />
         </button>
       </div>
+
+      {isExportModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-slate-900 border border-white/10 p-6 rounded-2xl w-full max-w-sm relative">
+            <button 
+              onClick={() => setIsExportModalOpen(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <h2 className="text-xl font-bold mb-4">Exportar Datos</h2>
+            <p className="text-sm text-gray-400 mb-6">
+              Seleccioná en qué formato querés guardar tu respaldo. Podés usar cualquiera de los dos para luego importarlos.
+            </p>
+            <div className="space-y-3">
+              <button 
+                onClick={() => executeExport('csv')}
+                className="w-full py-3 bg-black/40 border border-white/20 rounded-xl hover:bg-white/5 transition flex flex-col items-center justify-center"
+              >
+                <span className="font-semibold text-white">Solo CSV</span>
+                <span className="text-xs text-gray-400 mt-1">Ideal para Excel / Hojas de cálculo</span>
+              </button>
+              <button 
+                onClick={() => executeExport('json')}
+                className="w-full py-3 bg-black/40 border border-white/20 rounded-xl hover:bg-white/5 transition flex flex-col items-center justify-center"
+              >
+                <span className="font-semibold text-white">Solo JSON</span>
+                <span className="text-xs text-gray-400 mt-1">Datos estructurados puros</span>
+              </button>
+              <button 
+                onClick={() => executeExport('both')}
+                className="w-full py-3 bg-emerald-400 text-black font-semibold rounded-xl shadow-[0_0_10px_rgba(52,211,153,0.4)] transition"
+              >
+                Generar Ambos
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isTimerOpen && <TimerPanel onClose={() => setIsTimerOpen(false)} />}
       
