@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, ChevronRight, PenLine, Plus, Unlock, Lock, Download, Upload, Timer as TimerIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, PenLine, Plus, Unlock, Lock, Download, Upload, Timer as TimerIcon, History } from 'lucide-react';
 import { RoutineConfig, DayLog, Exercise } from './types';
-import { loadRoutineConfig, saveRoutineConfig, getDayLog, saveDayLog } from './utils/storage';
+import { loadRoutineConfig, saveRoutineConfig, getDayLog, saveDayLog, getLastDayMetrics } from './utils/storage';
 import { exportCSV, importCSV } from './utils/exportImport';
 import ExerciseCard from './components/ExerciseCard';
 import TimerPanel from './components/TimerPanel';
@@ -17,6 +17,8 @@ export default function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  const lastDayMetrics = getLastDayMetrics(currentDate);
 
   useEffect(() => {
     setRoutineConfig(loadRoutineConfig());
@@ -230,9 +232,9 @@ export default function App() {
     <div className="max-w-[600px] mx-auto pb-24 px-4 pt-5">
       <header className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
-          Gym Tracker <span className="text-[0.6em] text-gray-400">v9.8</span>
+          Gym Tracker <span className="text-[0.6em] text-gray-400">v9.9</span>
         </h1>
-        <div className="text-[0.7em] text-emerald-400">React v9.8 OK</div>
+        <div className="text-[0.7em] text-emerald-400">React v9.9 OK</div>
       </header>
 
       <div className="flex items-center gap-3 mb-6 bg-slate-900/70 p-3 rounded-2xl backdrop-blur-md border border-white/10">
@@ -315,6 +317,11 @@ export default function App() {
               placeholder="Ej: 953"
               className="w-full bg-black/40 border border-white/20 rounded-lg text-white text-sm py-2 px-3 focus:outline-none focus:border-emerald-400"
             />
+            {lastDayMetrics?.calories && (
+              <div className="text-right text-xs text-gray-500 mt-1 flex justify-end items-center gap-1" title={`Anterior: ${lastDayMetrics.date}`}>
+                <History className="w-3 h-3" /> {lastDayMetrics.calories}
+              </div>
+            )}
           </div>
           <div>
             <label className="block text-xs text-gray-400 mb-1">Duración (HH:MM:SS)</label>
@@ -325,6 +332,11 @@ export default function App() {
               placeholder="Ej: 01:20:20"
               className="w-full bg-black/40 border border-white/20 rounded-lg text-white text-sm py-2 px-3 focus:outline-none focus:border-emerald-400"
             />
+            {lastDayMetrics?.duration && (
+              <div className="text-right text-xs text-gray-500 mt-1 flex justify-end items-center gap-1" title={`Anterior: ${lastDayMetrics.date}`}>
+                <History className="w-3 h-3" /> {lastDayMetrics.duration}
+              </div>
+            )}
           </div>
           <div>
             <label className="block text-xs text-gray-400 mb-1">FC Promedio (ppm)</label>
@@ -335,6 +347,11 @@ export default function App() {
               placeholder="Ej: 117"
               className="w-full bg-black/40 border border-white/20 rounded-lg text-white text-sm py-2 px-3 focus:outline-none focus:border-emerald-400"
             />
+            {lastDayMetrics?.avgHeartRate && (
+              <div className="text-right text-xs text-gray-500 mt-1 flex justify-end items-center gap-1" title={`Anterior: ${lastDayMetrics.date}`}>
+                <History className="w-3 h-3" /> {lastDayMetrics.avgHeartRate}
+              </div>
+            )}
           </div>
           <div>
             <label className="block text-xs text-gray-400 mb-1">FC Máxima (ppm)</label>
@@ -345,6 +362,11 @@ export default function App() {
               placeholder="Ej: 152"
               className="w-full bg-black/40 border border-white/20 rounded-lg text-white text-sm py-2 px-3 focus:outline-none focus:border-emerald-400"
             />
+            {lastDayMetrics?.maxHeartRate && (
+              <div className="text-right text-xs text-gray-500 mt-1 flex justify-end items-center gap-1" title={`Anterior: ${lastDayMetrics.date}`}>
+                <History className="w-3 h-3" /> {lastDayMetrics.maxHeartRate}
+              </div>
+            )}
           </div>
         </div>
       </div>

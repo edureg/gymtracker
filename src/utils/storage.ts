@@ -82,3 +82,40 @@ export function getLastSessionData(exerciseId: string, currentDate: Date) {
 
     return null;
 }
+
+export function getLastDayMetrics(currentDate: Date) {
+    const today = new Date(currentDate);
+    today.setHours(0, 0, 0, 0);
+
+    const keys = Object.keys(localStorage).filter(k => k.startsWith('gym_log_'));
+
+    const history = keys.map(key => {
+        const dateStr = key.replace('gym_log_', '');
+        const parts = dateStr.split('-');
+        const date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        return { date, key, dateStr };
+    });
+
+    const pastSessions = history
+        .filter(h => h.date < today)
+        .sort((a, b) => b.date.getTime() - a.date.getTime());
+
+    const currentDayOfWeek = today.getDay();
+
+    for (const session of pastSessions) {
+        if (session.date.getDay() === currentDayOfWeek) {
+            const data = JSON.parse(localStorage.getItem(session.key) || '{}');
+            if (data.calories || data.duration || data.avgHeartRate || data.maxHeartRate) {
+                return {
+                    date: session.dateStr,
+                    calories: data.calories,
+                    duration: data.duration,
+                    avgHeartRate: data.avgHeartRate,
+                    maxHeartRate: data.maxHeartRate
+                };
+            }
+        }
+    }
+
+    return null;
+}
