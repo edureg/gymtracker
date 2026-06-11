@@ -90,8 +90,8 @@ export function getLastSessionData(exerciseId: string, currentDate: Date) {
     return null;
 }
 
-export function getLastDayMetrics(currentDate: Date, routineId?: string) {
-    if (!routineId) return null;
+export function getLastDayMetrics(currentDate: Date, routine: any) {
+    if (!routine) return null;
     const today = new Date(currentDate);
     today.setHours(0, 0, 0, 0);
 
@@ -108,9 +108,22 @@ export function getLastDayMetrics(currentDate: Date, routineId?: string) {
         .filter(h => h.date < today)
         .sort((a, b) => b.date.getTime() - a.date.getTime());
 
+    const routineExIds = routine.exercises ? routine.exercises.map((ex: any) => ex.id) : [];
+
     for (const session of pastSessions) {
         const data = JSON.parse(localStorage.getItem(session.key) || '{}');
-        if (data.routineId === routineId) {
+        
+        let isMatch = false;
+        if (data.routineId) {
+            isMatch = data.routineId === routine.id;
+        } else {
+            const logExerciseIds = Object.keys(data).filter(k => 
+                !['_day_note_', 'calories', 'duration', 'avgHeartRate', 'maxHeartRate', 'routineId'].includes(k)
+            );
+            isMatch = logExerciseIds.some(id => routineExIds.includes(id));
+        }
+
+        if (isMatch) {
             if (data.calories || data.duration || data.avgHeartRate || data.maxHeartRate) {
                 return {
                     date: session.dateStr,

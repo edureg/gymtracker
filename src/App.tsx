@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, ChevronRight, PenLine, Plus, Unlock, Lock, Download, Upload, Timer as TimerIcon, History, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, PenLine, Plus, Unlock, Lock, Download, Upload, Timer as TimerIcon, History, X, Home } from 'lucide-react';
 import { RoutineConfig, DayLog, Exercise } from './types';
 import { loadRoutineConfig, saveRoutineConfig, getDayLog, saveDayLog, getLastDayMetrics } from './utils/storage';
 import { exportCSV, exportJSON, importFile } from './utils/exportImport';
@@ -16,7 +16,7 @@ export default function App() {
   const [isTimerOpen, setIsTimerOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-  const [showRoutineHistory, setShowRoutineHistory] = useState(false);
+  const [routineForHistory, setRoutineForHistory] = useState<Routine | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -24,7 +24,7 @@ export default function App() {
   const activeRoutineId = dayLog.routineId;
   const currentDayRoutine = activeRoutineId ? routineConfig[activeRoutineId] : null;
 
-  const lastDayMetrics = getLastDayMetrics(currentDate, activeRoutineId);
+  const lastDayMetrics = getLastDayMetrics(currentDate, currentDayRoutine);
 
   useEffect(() => {
     setRoutineConfig(loadRoutineConfig());
@@ -280,6 +280,8 @@ export default function App() {
   let dateStr = currentDate.toLocaleDateString('es-AR', dateOptions);
   dateStr = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
 
+  const isToday = new Date().toDateString() === currentDate.toDateString();
+
   // Compute Exercise Bank (all unique exercises across all days)
   const allExercisesMap = new Map<string, Exercise>();
   Object.values(routineConfig).forEach(day => {
@@ -298,14 +300,24 @@ export default function App() {
     <div className="max-w-[600px] mx-auto pb-24 px-4 pt-5">
       <header className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
-          Gym Tracker <span className="text-[0.6em] text-gray-400">v9.11</span>
+          Gym Tracker <span className="text-[0.6em] text-gray-400">v9.13</span>
         </h1>
-        <div className="text-[0.7em] text-emerald-400">React v9.11 OK</div>
+        <div className="text-[0.7em] text-emerald-400">React v9.13 OK</div>
       </header>
 
       <div className="flex items-center gap-3 mb-6 bg-slate-900/70 p-3 rounded-2xl backdrop-blur-md border border-white/10">
         <button tabIndex={-1} onClick={() => changeDate(-1)} className="p-2 text-emerald-400 hover:bg-white/5 rounded-lg"><ChevronLeft /></button>
-        <div className="flex-grow text-center font-semibold text-lg">{dateStr}</div>
+        <div className="flex-grow flex flex-col items-center justify-center">
+             <div className="text-center font-semibold text-base sm:text-lg">{dateStr}</div>
+             {!isToday && (
+                <button 
+                  onClick={() => setCurrentDate(new Date())}
+                  className="text-xs text-emerald-400 mb-[-5px] mt-1 flex items-center gap-1 hover:text-emerald-300"
+                >
+                  <Home className="w-3 h-3" /> Ir a hoy
+                </button>
+             )}
+        </div>
         <button tabIndex={-1} onClick={() => changeDate(1)} className="p-2 text-emerald-400 hover:bg-white/5 rounded-lg"><ChevronRight /></button>
       </div>
 
@@ -314,14 +326,22 @@ export default function App() {
           <h2 className="text-xl font-bold mb-6 text-emerald-400">¿Qué rutina vas a hacer hoy?</h2>
           <div className="space-y-4 px-4">
             {Object.values(routineConfig).map(routine => (
-              <button 
-                key={routine.id}
-                onClick={() => selectRoutineForDay(routine.id)}
-                className="w-full py-4 px-5 bg-black/40 border border-white/10 rounded-2xl flex items-center justify-between hover:bg-white/5 hover:border-emerald-400/50 transition-colors"
-               >
-                <div className="text-lg font-semibold text-gray-200">{routine.title}</div>
-                <div className="text-sm text-gray-500">{routine.exercises?.filter(e => e.isActive !== false).length || 0} ejercicios</div>
-              </button>
+              <div key={routine.id} className="flex gap-2">
+                <button 
+                  onClick={() => selectRoutineForDay(routine.id)}
+                  className="flex-grow py-4 px-5 bg-black/40 border border-white/10 rounded-2xl flex items-center justify-between hover:bg-white/5 hover:border-emerald-400/50 transition-colors"
+                 >
+                  <div className="text-lg font-semibold text-gray-200">{routine.title}</div>
+                  <div className="text-sm text-gray-500">{routine.exercises?.filter(e => e.isActive !== false).length || 0} ejercicios</div>
+                </button>
+                <button
+                  onClick={() => setRoutineForHistory(routine)}
+                  className="w-16 bg-emerald-400/10 text-emerald-400 border border-emerald-400/20 rounded-2xl flex flex-col items-center justify-center hover:bg-emerald-400/20 transition-colors shadow-sm"
+                  title={`Historial de ${routine.title}`}
+                >
+                  <History className="w-5 h-5" />
+                </button>
+              </div>
             ))}
             <button 
               onClick={createNewRoutine}
@@ -352,7 +372,7 @@ export default function App() {
                   <span>{currentDayRoutine?.title}</span>
                   <div className="flex gap-1 ml-auto">
                     <button 
-                      onClick={() => setShowRoutineHistory(true)}
+                      onClick={() => setRoutineForHistory(currentDayRoutine)}
                       className="p-2 bg-emerald-400/10 text-emerald-400 rounded-lg hover:bg-emerald-400/20 transition-colors"
                       title="Ver Historial de Rutina"
                     >
@@ -600,12 +620,12 @@ export default function App() {
         </div>
       )}
 
-      {showRoutineHistory && activeRoutineId && currentDayRoutine && (
+      {routineForHistory && (
          <RoutineHistoryModal 
-           routineId={activeRoutineId}
-           routineName={currentDayRoutine.title}
-           routineExercises={currentDayRoutine.exercises || []}
-           onClose={() => setShowRoutineHistory(false)}
+           routineId={routineForHistory.id}
+           routineName={routineForHistory.title}
+           routineExercises={routineForHistory.exercises || []}
+           onClose={() => setRoutineForHistory(null)}
          />
       )}
 

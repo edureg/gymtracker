@@ -17,18 +17,35 @@ export default function RoutineHistoryModal({ routineId, routineName, routineExe
         const matched = [];
         const routineExIds = routineExercises.map(ex => ex.id);
         
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
         for (const key of keys) {
             const dateStr = key.replace('gym_log_', '');
+            const parts = dateStr.split('-');
+            const logDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+            
+            if (logDate > today) continue;
+
             const data = JSON.parse(localStorage.getItem(key) || '{}');
+            
+            const logExerciseIds = Object.keys(data).filter(k => 
+                !['_day_note_', 'calories', 'duration', 'avgHeartRate', 'maxHeartRate', 'routineId'].includes(k)
+            );
+            
+            const hasMetrics = data.calories || data.duration || data.avgHeartRate || data.maxHeartRate;
+            const hasExerciseData = logExerciseIds.some(exId => {
+                const ex = data[exId];
+                return Object.keys(ex).some(setIdx => setIdx !== 'note' && (ex[setIdx].reps || ex[setIdx].weight || ex[setIdx].time));
+            });
+
+            if (!hasMetrics && !hasExerciseData) continue;
             
             let isMatch = false;
             if (data.routineId) {
                 isMatch = data.routineId === routineId;
             } else {
                 // Fallback for older logs before routineId existed
-                const logExerciseIds = Object.keys(data).filter(k => 
-                    !['_day_note_', 'calories', 'duration', 'avgHeartRate', 'maxHeartRate', 'routineId'].includes(k)
-                );
                 // Check if the log shares at least one exercise with the current routine
                 isMatch = logExerciseIds.some(id => routineExIds.includes(id));
             }
