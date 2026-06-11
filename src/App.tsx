@@ -6,6 +6,7 @@ import { exportCSV, exportJSON, importFile } from './utils/exportImport';
 import ExerciseCard from './components/ExerciseCard';
 import TimerPanel from './components/TimerPanel';
 import AddExerciseModal from './components/AddExerciseModal';
+import RoutineHistoryModal from './components/RoutineHistoryModal';
 
 export default function App() {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -15,11 +16,15 @@ export default function App() {
   const [isTimerOpen, setIsTimerOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [showRoutineHistory, setShowRoutineHistory] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  const lastDayMetrics = getLastDayMetrics(currentDate);
+  const activeRoutineId = dayLog.routineId;
+  const currentDayRoutine = activeRoutineId ? routineConfig[activeRoutineId] : null;
+
+  const lastDayMetrics = getLastDayMetrics(currentDate, activeRoutineId);
 
   useEffect(() => {
     setRoutineConfig(loadRoutineConfig());
@@ -96,13 +101,59 @@ export default function App() {
     }
   };
 
-  const dayIndex = currentDate.getDay();
-  const currentDayRoutine = routineConfig[dayIndex] || { title: 'Descanso', exercises: [] };
+  const dayIndex = currentDate.getDay(); // Mantenido solo si se necesita, pero ya no rige la app
   
-  const activeExercises = currentDayRoutine.exercises?.filter(ex => ex.isActive !== false) || [];
-  const inactiveExercises = currentDayRoutine.exercises?.filter(ex => ex.isActive === false) || [];
+  const activeExercises = currentDayRoutine?.exercises?.filter(ex => ex.isActive !== false) || [];
+  const inactiveExercises = currentDayRoutine?.exercises?.filter(ex => ex.isActive === false) || [];
+
+  const updateRoutineTitle = (title: string) => {
+    if (!activeRoutineId || !currentDayRoutine) return;
+    const newConfig = {
+      ...routineConfig,
+      [activeRoutineId]: { ...currentDayRoutine, title }
+    };
+    setRoutineConfig(newConfig);
+    saveRoutineConfig(newConfig);
+  };
+
+  const createNewRoutine = () => {
+    const rId = 'routine_' + Date.now();
+    const newRoutine = {
+      id: rId,
+      title: 'Nueva Rutina',
+      exercises: []
+    };
+    const newConfig = { ...routineConfig, [rId]: newRoutine };
+    setRoutineConfig(newConfig);
+    saveRoutineConfig(newConfig);
+    handleDayMetricChange('routineId', rId);
+    setIsEditMode(true);
+  };
+
+  const unlinkRoutineFromDay = () => {
+    const newLog = { ...dayLog };
+    delete newLog.routineId;
+    setDayLog(newLog);
+    saveDayLog(currentDate, newLog);
+  };
+
+  const deleteCurrentRoutine = () => {
+    if (!activeRoutineId || !currentDayRoutine) return;
+    if (!window.confirm(`¿Seguro que querés borrar permanentemente la rutina "${currentDayRoutine.title}"? Perderás su configuración global (no el historial pasado).`)) return;
+    const newConfig = { ...routineConfig };
+    delete newConfig[activeRoutineId];
+    setRoutineConfig(newConfig);
+    saveRoutineConfig(newConfig);
+    unlinkRoutineFromDay();
+    setIsEditMode(false);
+  };
+
+  const selectRoutineForDay = (id: string) => {
+    handleDayMetricChange('routineId', id);
+  };
 
   const moveExercise = (exIndex: number, direction: number) => {
+    if (!activeRoutineId || !currentDayRoutine) return;
     const newExercises = [...currentDayRoutine.exercises];
     // Find the actual index in the full array
     const activeEx = activeExercises[exIndex];
@@ -120,37 +171,40 @@ export default function App() {
 
     const newConfig = {
       ...routineConfig,
-      [dayIndex]: { ...currentDayRoutine, exercises: newExercises }
+      [activeRoutineId]: { ...currentDayRoutine, exercises: newExercises }
     };
     setRoutineConfig(newConfig);
     saveRoutineConfig(newConfig);
   };
 
   const toggleExerciseActive = (exId: string, isActive: boolean) => {
+    if (!activeRoutineId || !currentDayRoutine) return;
     const newExercises = currentDayRoutine.exercises.map(ex => 
       ex.id === exId ? { ...ex, isActive } : ex
     );
     const newConfig = {
       ...routineConfig,
-      [dayIndex]: { ...currentDayRoutine, exercises: newExercises }
+      [activeRoutineId]: { ...currentDayRoutine, exercises: newExercises }
     };
     setRoutineConfig(newConfig);
     saveRoutineConfig(newConfig);
   };
 
   const updateExerciseNotes = (exId: string, newNotes: string) => {
+    if (!activeRoutineId || !currentDayRoutine) return;
     const newExercises = currentDayRoutine.exercises.map(ex => 
       ex.id === exId ? { ...ex, notes: newNotes } : ex
     );
     const newConfig = {
       ...routineConfig,
-      [dayIndex]: { ...currentDayRoutine, exercises: newExercises }
+      [activeRoutineId]: { ...currentDayRoutine, exercises: newExercises }
     };
     setRoutineConfig(newConfig);
     saveRoutineConfig(newConfig);
   };
 
   const changeSets = (exId: string, delta: number) => {
+    if (!activeRoutineId || !currentDayRoutine) return;
     const newExercises = currentDayRoutine.exercises.map(ex => {
       if (ex.id === exId) {
         const newSets = Math.max(1, ex.sets + delta);
@@ -160,13 +214,14 @@ export default function App() {
     });
     const newConfig = {
       ...routineConfig,
-      [dayIndex]: { ...currentDayRoutine, exercises: newExercises }
+      [activeRoutineId]: { ...currentDayRoutine, exercises: newExercises }
     };
     setRoutineConfig(newConfig);
     saveRoutineConfig(newConfig);
   };
 
   const addExercise = (exercise: Exercise) => {
+    if (!activeRoutineId || !currentDayRoutine) return;
     const newExercises = [...(currentDayRoutine.exercises || [])];
     const existingIdx = newExercises.findIndex(e => e.id === exercise.id);
     
@@ -178,7 +233,7 @@ export default function App() {
 
     const newConfig = {
       ...routineConfig,
-      [dayIndex]: { ...currentDayRoutine, exercises: newExercises }
+      [activeRoutineId]: { ...currentDayRoutine, exercises: newExercises }
     };
     setRoutineConfig(newConfig);
     saveRoutineConfig(newConfig);
@@ -254,13 +309,81 @@ export default function App() {
         <button tabIndex={-1} onClick={() => changeDate(1)} className="p-2 text-emerald-400 hover:bg-white/5 rounded-lg"><ChevronRight /></button>
       </div>
 
-      <div className="text-sm text-gray-400 mb-6">{currentDayRoutine.title}</div>
+      {!activeRoutineId ? (
+        <div className="text-center py-10">
+          <h2 className="text-xl font-bold mb-6 text-emerald-400">¿Qué rutina vas a hacer hoy?</h2>
+          <div className="space-y-4 px-4">
+            {Object.values(routineConfig).map(routine => (
+              <button 
+                key={routine.id}
+                onClick={() => selectRoutineForDay(routine.id)}
+                className="w-full py-4 px-5 bg-black/40 border border-white/10 rounded-2xl flex items-center justify-between hover:bg-white/5 hover:border-emerald-400/50 transition-colors"
+               >
+                <div className="text-lg font-semibold text-gray-200">{routine.title}</div>
+                <div className="text-sm text-gray-500">{routine.exercises?.filter(e => e.isActive !== false).length || 0} ejercicios</div>
+              </button>
+            ))}
+            <button 
+              onClick={createNewRoutine}
+              className="w-full py-4 mt-6 bg-emerald-400/10 text-emerald-400 border border-emerald-400/30 rounded-2xl font-semibold flex items-center justify-center gap-2 hover:bg-emerald-400/20 transition-colors"
+            >
+              <Plus className="w-5 h-5" /> Nueva Rutina
+            </button>
+          </div>
+          
+          <div className="mt-12 text-center text-sm text-gray-500">
+             Al seleccionar una rutina, estarás vinculando los ejercicios de hoy a dicha plantilla. ¡Puedes cambiarla cuando quieras!
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="flex flex-col mb-6">
+            <div className="flex justify-between items-start mb-2">
+              {isEditMode ? (
+                <input 
+                  type="text"
+                  value={currentDayRoutine?.title || ''}
+                  onChange={(e) => updateRoutineTitle(e.target.value)}
+                  placeholder="Nombre de la rutina"
+                  className="bg-transparent border-b border-emerald-400 text-lg font-bold text-white focus:outline-none w-[60%] pb-1"
+                />
+              ) : (
+                <div className="text-xl font-bold text-emerald-400 flex items-center gap-2">
+                  {currentDayRoutine?.title}
+                  <button 
+                    onClick={() => setShowRoutineHistory(true)}
+                    className="p-1.5 bg-emerald-400/10 text-emerald-400 rounded-lg ml-2 hover:bg-emerald-400/20 transition-colors"
+                    title="Ver Historial de Rutina"
+                  >
+                    <History className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
 
-      <div className="mb-5 relative">
-        <PenLine className="absolute left-3 top-3 text-gray-400 w-4 h-4" />
-        <textarea
-          value={dayLog._day_note_ || ''}
-          onChange={handleDayNoteChange}
+              {isEditMode && (
+                 <div className="flex flex-col gap-2 items-end">
+                    <button 
+                      onClick={unlinkRoutineFromDay}
+                      className="text-xs text-orange-400 bg-orange-400/10 px-3 py-1.5 rounded-lg hover:bg-orange-400/20 whitespace-nowrap"
+                    >
+                      Desvincular de Hoy
+                    </button>
+                    <button 
+                      onClick={deleteCurrentRoutine}
+                      className="text-xs text-red-500 bg-red-500/10 px-3 py-1.5 rounded-lg hover:bg-red-500/20 whitespace-nowrap"
+                    >
+                      Borrar Rutina (Global)
+                    </button>
+                 </div>
+              )}
+            </div>
+          </div>
+
+          <div className="mb-5 relative">
+            <PenLine className="absolute left-3 top-3 text-gray-400 w-4 h-4" />
+            <textarea
+              value={dayLog._day_note_ || ''}
+              onChange={handleDayNoteChange}
           placeholder="Observaciones generales para el día de entrenamiento..."
           rows={2}
           className="w-full bg-black/40 border border-white/20 rounded-lg text-white text-sm py-2.5 pr-3 pl-9 resize-y focus:outline-none focus:border-emerald-400"
@@ -469,6 +592,14 @@ export default function App() {
         </div>
       )}
 
+      {showRoutineHistory && activeRoutineId && currentDayRoutine && (
+         <RoutineHistoryModal 
+           routineId={activeRoutineId}
+           routineName={currentDayRoutine.title}
+           onClose={() => setShowRoutineHistory(false)}
+         />
+      )}
+
       {isTimerOpen && <TimerPanel onClose={() => setIsTimerOpen(false)} />}
       
       {isAddModalOpen && (
@@ -477,6 +608,8 @@ export default function App() {
           onAdd={addExercise} 
           exerciseBank={exerciseBank}
         />
+      )}
+        </>
       )}
     </div>
   );

@@ -8,12 +8,13 @@ export type Exercise = {
   isActive?: boolean;
 };
 
-export type DayRoutine = {
+export type Routine = {
+  id: string;
   title: string;
   exercises: Exercise[];
 };
 
-export type RoutineConfig = Record<number, DayRoutine>;
+export type RoutineConfig = Record<string, Routine>;
 
 export type SetData = {
   reps?: number | string;
@@ -33,5 +34,6 @@ export type DayLog = {
   duration?: string;
   avgHeartRate?: string;
   maxHeartRate?: string;
+  routineId?: string;
   [exId: string]: any;
 };

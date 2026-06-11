@@ -25,12 +25,18 @@ export function exportCSV(currentRoutine: RoutineConfig) {
             const sets = data[exId];
             let exName = exId;
 
-            [0, 1, 2, 3, 4, 5, 6].forEach(d => {
-                const foundInCurrent = currentRoutine[d]?.exercises?.find(e => e.id === exId);
-                const foundInOriginal = DEFAULT_ROUTINE[d] ? DEFAULT_ROUTINE[d].exercises?.find(e => e.id === exId) : null;
+            Object.values(currentRoutine).forEach(routine => {
+                const foundInCurrent = routine.exercises?.find(e => e.id === exId);
                 if (foundInCurrent) exName = foundInCurrent.name;
-                else if (foundInOriginal && exName === exId) exName = foundInOriginal.name;
             });
+
+            // Also check default routines if not found
+            if (exName === exId) {
+                Object.values(DEFAULT_ROUTINE).forEach(routine => {
+                    const foundInOriginal = routine.exercises?.find(e => e.id === exId);
+                    if (foundInOriginal) exName = foundInOriginal.name;
+                });
+            }
 
             Object.keys(sets).forEach(setIdx => {
                 if (setIdx === 'note' || setIdx === 'done') return;
@@ -177,14 +183,14 @@ function importCSV(file: File, currentRoutine: RoutineConfig, onComplete: (newCo
                 const maxHeartRate = matchArray.length >= 12 ? matchArray[11] : '';
 
                 let exId: string | null = null;
-                [0, 1, 2, 3, 4, 5, 6].forEach(d => {
-                    const found = currentRoutine[d]?.exercises?.find(ex => ex.name === exName);
+                Object.values(currentRoutine).forEach(routine => {
+                    const found = routine.exercises?.find(ex => ex.name === exName);
                     if (found) exId = found.id;
                 });
 
                 if (!exId) {
-                    [1, 3, 5].forEach(d => {
-                        const found = DEFAULT_ROUTINE[d]?.exercises?.find(ex => ex.name === exName);
+                    Object.values(DEFAULT_ROUTINE).forEach(routine => {
+                        const found = routine.exercises?.find(ex => ex.name === exName);
                         if (found) exId = found.id;
                     });
                 }

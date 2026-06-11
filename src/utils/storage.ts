@@ -5,19 +5,43 @@ import { getLocalISODate, getDayName } from './date';
 export function loadRoutineConfig(): RoutineConfig {
   const saved = localStorage.getItem('gym_custom_routine');
   if (saved) {
-    return JSON.parse(saved);
-  }
-  const config: RoutineConfig = {};
-  for (let i = 0; i <= 6; i++) {
-    if (DEFAULT_ROUTINE[i]) {
-      config[i] = JSON.parse(JSON.stringify(DEFAULT_ROUTINE[i]));
-    } else {
-      const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-      config[i] = { title: days[i], exercises: [] };
+    const parsed = JSON.parse(saved);
+    const keys = Object.keys(parsed);
+    const isOldFormat = keys.some(k => !isNaN(Number(k)) && parseInt(k) >= 0 && parseInt(k) <= 6);
+    
+    if (isOldFormat) {
+      console.log("Migrando rutinas al nuevo formato libre...");
+      const migrated: RoutineConfig = {};
+      let counter = 1;
+      
+      [1, 2, 3, 4, 5, 6, 0].forEach(dayNum => {
+        const oldRoutine = parsed[dayNum.toString()] || parsed[dayNum];
+        if (oldRoutine && oldRoutine.exercises && oldRoutine.exercises.length > 0) {
+          const newId = `routine_${counter}`;
+          migrated[newId] = {
+            id: newId,
+            title: oldRoutine.title || `Rutina ${counter}`,
+            exercises: oldRoutine.exercises
+          };
+          counter++;
+        }
+      });
+      
+      if (Object.keys(migrated).length === 0) {
+          // Si no había nada de nada, creamos una de muestra
+          migrated['routine_1'] = { id: 'routine_1', title: 'Rutina 1', exercises: [] };
+      }
+      localStorage.setItem('gym_custom_routine', JSON.stringify(migrated));
+      return migrated;
     }
+    return parsed;
   }
-  localStorage.setItem('gym_custom_routine', JSON.stringify(config));
-  return config;
+  
+  const defaultConfig: RoutineConfig = {
+    'routine_1': { id: 'routine_1', title: 'Rutina 1', exercises: [] }
+  };
+  localStorage.setItem('gym_custom_routine', JSON.stringify(defaultConfig));
+  return defaultConfig;
 }
 
 export function saveRoutineConfig(config: RoutineConfig) {
@@ -52,30 +76,13 @@ export function getLastSessionData(exerciseId: string, currentDate: Date) {
         .filter(h => h.date < today)
         .sort((a, b) => b.date.getTime() - a.date.getTime());
 
-    const currentDayOfWeek = today.getDay();
-
     for (const session of pastSessions) {
-        if (session.date.getDay() === currentDayOfWeek) {
-            const data = JSON.parse(localStorage.getItem(session.key) || '{}');
-            if (data[exerciseId]) {
-                const exData = data[exerciseId];
-                const hasContent = Object.keys(exData).some(k => k !== 'note' && (exData[k].weight || exData[k].reps || exData[k].time));
-                if (hasContent) {
-                    return { date: session.dateStr, ...exData };
-                }
-            }
-        }
-    }
-
-    for (const session of pastSessions) {
-        if (session.date.getDay() !== currentDayOfWeek) {
-            const data = JSON.parse(localStorage.getItem(session.key) || '{}');
-            if (data[exerciseId]) {
-                const exData = data[exerciseId];
-                const hasContent = Object.keys(exData).some(k => k !== 'note' && (exData[k].weight || exData[k].reps || exData[k].time));
-                if (hasContent) {
-                    return { date: session.dateStr + ' (' + getDayName(session.date.getDay()) + ')', ...exData };
-                }
+        const data = JSON.parse(localStorage.getItem(session.key) || '{}');
+        if (data[exerciseId]) {
+            const exData = data[exerciseId];
+            const hasContent = Object.keys(exData).some(k => k !== 'note' && (exData[k].weight || exData[k].reps || exData[k].time));
+            if (hasContent) {
+                return { date: session.dateStr, ...exData };
             }
         }
     }
@@ -83,7 +90,8 @@ export function getLastSessionData(exerciseId: string, currentDate: Date) {
     return null;
 }
 
-export function getLastDayMetrics(currentDate: Date) {
+export function getLastDayMetrics(currentDate: Date, routineId?: string) {
+    if (!routineId) return null;
     const today = new Date(currentDate);
     today.setHours(0, 0, 0, 0);
 
@@ -100,11 +108,9 @@ export function getLastDayMetrics(currentDate: Date) {
         .filter(h => h.date < today)
         .sort((a, b) => b.date.getTime() - a.date.getTime());
 
-    const currentDayOfWeek = today.getDay();
-
     for (const session of pastSessions) {
-        if (session.date.getDay() === currentDayOfWeek) {
-            const data = JSON.parse(localStorage.getItem(session.key) || '{}');
+        const data = JSON.parse(localStorage.getItem(session.key) || '{}');
+        if (data.routineId === routineId) {
             if (data.calories || data.duration || data.avgHeartRate || data.maxHeartRate) {
                 return {
                     date: session.dateStr,
