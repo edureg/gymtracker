@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, ChevronRight, PenLine, Plus, Unlock, Lock, Download, Upload, Timer as TimerIcon, History, X, Home, Calendar } from 'lucide-react';
+import { ChevronLeft, ChevronRight, PenLine, Plus, Unlock, Lock, Download, Upload, Timer as TimerIcon, History, X, Home, Calendar, CheckCircle } from 'lucide-react';
 import { RoutineConfig, DayLog, Exercise } from './types';
 import { loadRoutineConfig, saveRoutineConfig, getDayLog, saveDayLog, getLastDayMetrics } from './utils/storage';
 import { exportCSV, exportJSON, importFile } from './utils/exportImport';
@@ -383,21 +383,38 @@ export default function App() {
           </header>
 
           {todayRoutineObj ? (
-             <div className="bg-emerald-400/10 border border-emerald-400/30 p-5 rounded-2xl mb-8">
-                <h2 className="text-emerald-400 font-bold mb-2">
-                   {todayHasFinishedMetrics ? 'Entrenamiento de hoy finalizado' : 'Entrenamiento de hoy en curso'}
-                </h2>
-                <p className="text-gray-200 text-lg mb-4">{todayRoutineObj.title}</p>
-                <button 
-                   onClick={() => {
-                      setCurrentDate(new Date());
-                      setCurrentView('workout');
-                   }}
-                   className="w-full py-3 bg-emerald-400 text-black font-bold rounded-xl shadow-[0_0_15px_rgba(52,211,153,0.3)] hover:bg-emerald-300 transition-colors"
-                >
-                   {todayHasFinishedMetrics ? 'Ver / Editar Entrenamiento' : 'Continuar Entrenamiento'}
-                </button>
-             </div>
+             todayHasFinishedMetrics ? (
+                <div className="bg-slate-900/60 border border-emerald-500/50 p-5 rounded-2xl mb-8 flex flex-col items-center text-center">
+                   <div className="w-12 h-12 bg-emerald-500/20 rounded-full flex items-center justify-center mb-3">
+                      <CheckCircle className="w-6 h-6 text-emerald-400" />
+                   </div>
+                   <h2 className="text-emerald-400 text-lg font-bold mb-1">¡Entrenamiento Finalizado!</h2>
+                   <p className="text-gray-300 mb-5">{todayRoutineObj.title}</p>
+                   <button 
+                      onClick={() => {
+                         setCurrentDate(new Date());
+                         setCurrentView('workout');
+                      }}
+                      className="w-full py-3 bg-black/40 text-emerald-400 border border-emerald-400/20 font-bold rounded-xl hover:bg-emerald-400/10 transition-colors"
+                   >
+                      Ver / Editar
+                   </button>
+                </div>
+             ) : (
+                <div className="bg-emerald-400/10 border border-emerald-400/30 p-5 rounded-2xl mb-8">
+                   <h2 className="text-emerald-400 font-bold mb-2">Entrenamiento de hoy en curso</h2>
+                   <p className="text-gray-200 text-lg mb-4">{todayRoutineObj.title}</p>
+                   <button 
+                      onClick={() => {
+                         setCurrentDate(new Date());
+                         setCurrentView('workout');
+                      }}
+                      className="w-full py-3 bg-emerald-400 text-black font-bold rounded-xl shadow-[0_0_15px_rgba(52,211,153,0.3)] hover:bg-emerald-300 transition-colors"
+                   >
+                      Continuar Entrenamiento
+                   </button>
+                </div>
+             )
           ) : (
              <div className="mb-8">
                 <h2 className="text-xl font-bold text-white mb-2">¡Hola! ¿Qué entrenamos hoy?</h2>
