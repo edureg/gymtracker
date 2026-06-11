@@ -298,9 +298,9 @@ export default function App() {
     <div className="max-w-[600px] mx-auto pb-24 px-4 pt-5">
       <header className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
-          Gym Tracker <span className="text-[0.6em] text-gray-400">v9.10</span>
+          Gym Tracker <span className="text-[0.6em] text-gray-400">v9.11</span>
         </h1>
-        <div className="text-[0.7em] text-emerald-400">React v9.10 OK</div>
+        <div className="text-[0.7em] text-emerald-400">React v9.11 OK</div>
       </header>
 
       <div className="flex items-center gap-3 mb-6 bg-slate-900/70 p-3 rounded-2xl backdrop-blur-md border border-white/10">
@@ -348,15 +348,23 @@ export default function App() {
                   className="bg-transparent border-b border-emerald-400 text-lg font-bold text-white focus:outline-none w-[60%] pb-1"
                 />
               ) : (
-                <div className="text-xl font-bold text-emerald-400 flex items-center gap-2">
-                  {currentDayRoutine?.title}
-                  <button 
-                    onClick={() => setShowRoutineHistory(true)}
-                    className="p-1.5 bg-emerald-400/10 text-emerald-400 rounded-lg ml-2 hover:bg-emerald-400/20 transition-colors"
-                    title="Ver Historial de Rutina"
-                  >
-                    <History className="w-4 h-4" />
-                  </button>
+                <div className="text-xl font-bold text-emerald-400 flex flex-wrap items-center gap-2">
+                  <span>{currentDayRoutine?.title}</span>
+                  <div className="flex gap-1 ml-auto">
+                    <button 
+                      onClick={() => setShowRoutineHistory(true)}
+                      className="p-2 bg-emerald-400/10 text-emerald-400 rounded-lg hover:bg-emerald-400/20 transition-colors"
+                      title="Ver Historial de Rutina"
+                    >
+                      <History className="w-4 h-4" />
+                    </button>
+                    <button 
+                      onClick={unlinkRoutineFromDay}
+                      className="text-xs font-semibold text-orange-400 bg-orange-400/10 px-3 py-2 rounded-lg hover:bg-orange-400/20 whitespace-nowrap transition-colors"
+                    >
+                      Cambiar
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -596,6 +604,7 @@ export default function App() {
          <RoutineHistoryModal 
            routineId={activeRoutineId}
            routineName={currentDayRoutine.title}
+           routineExercises={currentDayRoutine.exercises || []}
            onClose={() => setShowRoutineHistory(false)}
          />
       )}

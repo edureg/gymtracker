@@ -1,25 +1,39 @@
 import React, { useState, useEffect } from 'react';
 import { X, CalendarIcon, Timer, Heart, Activity } from 'lucide-react';
+import { Exercise } from '../types';
 
 interface Props {
     routineId: string;
     routineName: string;
+    routineExercises: Exercise[];
     onClose: () => void;
 }
 
-export default function RoutineHistoryModal({ routineId, routineName, onClose }: Props) {
+export default function RoutineHistoryModal({ routineId, routineName, routineExercises, onClose }: Props) {
     const [history, setHistory] = useState<any[]>([]);
 
     useEffect(() => {
         const keys = Object.keys(localStorage).filter(k => k.startsWith('gym_log_'));
         const matched = [];
+        const routineExIds = routineExercises.map(ex => ex.id);
         
         for (const key of keys) {
             const dateStr = key.replace('gym_log_', '');
             const data = JSON.parse(localStorage.getItem(key) || '{}');
             
-            if (data.routineId === routineId) {
-                // Return even if some fields are missing
+            let isMatch = false;
+            if (data.routineId) {
+                isMatch = data.routineId === routineId;
+            } else {
+                // Fallback for older logs before routineId existed
+                const logExerciseIds = Object.keys(data).filter(k => 
+                    !['_day_note_', 'calories', 'duration', 'avgHeartRate', 'maxHeartRate', 'routineId'].includes(k)
+                );
+                // Check if the log shares at least one exercise with the current routine
+                isMatch = logExerciseIds.some(id => routineExIds.includes(id));
+            }
+
+            if (isMatch) {
                 matched.push({
                     date: dateStr,
                     calories: data.calories || '-',
