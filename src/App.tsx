@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, ChevronRight, PenLine, Plus, Unlock, Lock, Download, Upload, Timer as TimerIcon, History, X, Home } from 'lucide-react';
+import { ChevronLeft, ChevronRight, PenLine, Plus, Unlock, Lock, Download, Upload, Timer as TimerIcon, History, X, Home, Calendar } from 'lucide-react';
 import { RoutineConfig, DayLog, Exercise } from './types';
 import { loadRoutineConfig, saveRoutineConfig, getDayLog, saveDayLog, getLastDayMetrics } from './utils/storage';
 import { exportCSV, exportJSON, importFile } from './utils/exportImport';
@@ -17,6 +17,7 @@ export default function App() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [routineForHistory, setRoutineForHistory] = useState<Routine | null>(null);
+  const [currentView, setCurrentView] = useState<'home' | 'workout'>('home');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -151,6 +152,79 @@ export default function App() {
   const selectRoutineForDay = (id: string) => {
     handleDayMetricChange('routineId', id);
   };
+
+  const startRoutineToday = (routineId: string) => {
+      const today = new Date();
+      const tLog = getDayLog(today);
+      
+      let tLogHasData = false;
+      if (tLog) {
+         for (const key of Object.keys(tLog)) {
+            if (!['routineId', '_day_note_', 'calories', 'duration', 'avgHeartRate', 'maxHeartRate'].includes(key)) {
+               const exData = tLog[key];
+               for (const setKey of Object.keys(exData)) {
+                  if (setKey !== 'note' && (exData[setKey].reps || exData[setKey].weight || exData[setKey].time)) {
+                     tLogHasData = true;
+                     break;
+                  }
+               }
+            }
+         }
+      }
+
+      if (tLog.routineId && tLog.routineId !== routineId && tLogHasData) {
+          if (!window.confirm("Ya tienes datos en otra rutina de hoy. Si la cambiás, los descartarás en esta vista. ¿Continuar y cambiar?")) {
+              return;
+          }
+      }
+      
+      const newLog = { ...tLog, routineId };
+      saveDayLog(today, newLog);
+      setCurrentDate(today);
+      setRefreshTrigger(prev => prev + 1);
+      setCurrentView('workout');
+  };
+
+  const createNewRoutineFromHome = () => {
+    const rId = 'routine_' + Date.now();
+    const newRoutine = {
+      id: rId,
+      title: 'Nueva Rutina',
+      exercises: []
+    };
+    const newConfig = { ...routineConfig, [rId]: newRoutine };
+    setRoutineConfig(newConfig);
+    saveRoutineConfig(newConfig);
+    
+    const today = new Date();
+    const tLog = getDayLog(today);
+    const newLog = { ...tLog, routineId: rId };
+    saveDayLog(today, newLog);
+    setCurrentDate(today);
+    setRefreshTrigger(prev => prev + 1);
+    setCurrentView('workout');
+    setIsEditMode(true);
+  };
+
+  let currentLogHasData = false;
+  if (dayLog) {
+     for (const key of Object.keys(dayLog)) {
+        if (!['routineId', '_day_note_', 'calories', 'duration', 'avgHeartRate', 'maxHeartRate'].includes(key)) {
+           const exData = dayLog[key];
+           for (const setKey of Object.keys(exData)) {
+              if (setKey !== 'note' && (exData[setKey].reps || exData[setKey].weight || exData[setKey].time)) {
+                 currentLogHasData = true;
+                 break;
+              }
+           }
+        }
+     }
+  }
+
+  const todayDateObj = new Date();
+  const todayLogState = getDayLog(todayDateObj);
+  const todayRoutineId = todayLogState.routineId;
+  const todayRoutineObj = todayRoutineId ? routineConfig[todayRoutineId] : null;
 
   const moveExercise = (exIndex: number, direction: number) => {
     if (!activeRoutineId || !currentDayRoutine) return;
@@ -298,14 +372,96 @@ export default function App() {
 
   return (
     <div className="max-w-[600px] mx-auto pb-24 px-4 pt-5">
-      <header className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
-          Gym Tracker <span className="text-[0.6em] text-gray-400">v9.13</span>
-        </h1>
-        <div className="text-[0.7em] text-emerald-400">React v9.13 OK</div>
-      </header>
+      {currentView === 'home' ? (
+        <>
+          <header className="flex justify-between items-center mb-6">
+            <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
+              Gym Tracker <span className="text-[0.6em] text-gray-400">v9.14</span>
+            </h1>
+            <div className="text-[0.7em] text-emerald-400">React v9.14 OK</div>
+          </header>
 
-      <div className="flex items-center gap-3 mb-6 bg-slate-900/70 p-3 rounded-2xl backdrop-blur-md border border-white/10">
+          {todayRoutineObj ? (
+             <div className="bg-emerald-400/10 border border-emerald-400/30 p-5 rounded-2xl mb-8">
+                <h2 className="text-emerald-400 font-bold mb-2">Entrenamiento de hoy en curso</h2>
+                <p className="text-gray-200 text-lg mb-4">{todayRoutineObj.title}</p>
+                <button 
+                   onClick={() => {
+                      setCurrentDate(new Date());
+                      setCurrentView('workout');
+                   }}
+                   className="w-full py-3 bg-emerald-400 text-black font-bold rounded-xl shadow-[0_0_15px_rgba(52,211,153,0.3)] hover:bg-emerald-300 transition-colors"
+                >
+                   Continuar Entrenamiento
+                </button>
+             </div>
+          ) : (
+             <div className="mb-8">
+                <h2 className="text-xl font-bold text-white mb-2">¡Hola! ¿Qué entrenamos hoy?</h2>
+                <p className="text-gray-400 text-sm">Seleccioná una rutina de tu lista para comenzar a registrar tu actividad de hoy.</p>
+             </div>
+          )}
+
+          <div className="space-y-4">
+             <h3 className="text-lg font-bold text-gray-300 border-b border-white/10 pb-2">Tus Rutinas</h3>
+             {Object.values(routineConfig).map(routine => (
+                <div key={routine.id} className="bg-slate-900/60 border border-white/10 rounded-2xl p-4 flex flex-col gap-3 hover:bg-white/5 transition-colors">
+                   <div className="flex justify-between items-center">
+                      <span className="text-lg font-bold text-emerald-400">{routine.title}</span>
+                      <span className="text-sm text-gray-400">{routine.exercises?.filter(e => e.isActive !== false).length || 0} ejercicios</span>
+                   </div>
+                   <div className="grid grid-cols-2 gap-2 mt-2">
+                      <button 
+                         onClick={() => startRoutineToday(routine.id)}
+                         className="py-2.5 bg-black/40 text-emerald-400 border border-emerald-400/20 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-emerald-400/10 transition-colors"
+                      >
+                         <Plus className="w-4 h-4" /> Entrenar Hoy
+                      </button>
+                      <button 
+                         onClick={() => setRoutineForHistory(routine)}
+                         className="py-2.5 bg-black/40 text-gray-300 border border-white/10 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-white/10 transition-colors"
+                      >
+                         <History className="w-4 h-4" /> Historial
+                      </button>
+                   </div>
+                </div>
+             ))}
+             
+             <button 
+               onClick={createNewRoutineFromHome}
+               className="w-full py-4 mt-2 bg-transparent text-emerald-400 border-2 border-dashed border-emerald-400/30 rounded-2xl font-semibold flex items-center justify-center gap-2 hover:bg-emerald-400/10 transition-colors"
+             >
+               <Plus className="w-5 h-5" /> Crear Nueva Rutina
+             </button>
+          </div>
+
+          <div className="mt-10 text-center pt-6">
+             <button
+                onClick={() => {
+                   setCurrentDate(new Date());
+                   setCurrentView('workout');
+                }}
+                className="text-gray-400 hover:text-white transition-colors flex items-center justify-center gap-2 mx-auto"
+             >
+                <Calendar className="w-4 h-4"/> Ver mi Histórico (Navegar días)
+             </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <header className="flex justify-between items-center mb-6">
+            <button 
+              onClick={() => setCurrentView('home')}
+              className="flex items-center gap-2 text-gray-400 hover:text-emerald-400 transition-colors"
+            >
+              <Home className="w-5 h-5" /> <span className="text-sm font-semibold">Menú</span>
+            </button>
+            <h1 className="text-xl font-bold tracking-tight bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
+              Gym Tracker
+            </h1>
+          </header>
+
+          <div className="flex items-center gap-3 mb-6 bg-slate-900/70 p-3 rounded-2xl backdrop-blur-md border border-white/10">
         <button tabIndex={-1} onClick={() => changeDate(-1)} className="p-2 text-emerald-400 hover:bg-white/5 rounded-lg"><ChevronLeft /></button>
         <div className="flex-grow flex flex-col items-center justify-center">
              <div className="text-center font-semibold text-base sm:text-lg">{dateStr}</div>
@@ -322,39 +478,22 @@ export default function App() {
       </div>
 
       {!activeRoutineId ? (
-        <div className="text-center py-10">
-          <h2 className="text-xl font-bold mb-6 text-emerald-400">¿Qué rutina vas a hacer hoy?</h2>
-          <div className="space-y-4 px-4">
-            {Object.values(routineConfig).map(routine => (
-              <div key={routine.id} className="flex gap-2">
-                <button 
-                  onClick={() => selectRoutineForDay(routine.id)}
-                  className="flex-grow py-4 px-5 bg-black/40 border border-white/10 rounded-2xl flex items-center justify-between hover:bg-white/5 hover:border-emerald-400/50 transition-colors"
-                 >
-                  <div className="text-lg font-semibold text-gray-200">{routine.title}</div>
-                  <div className="text-sm text-gray-500">{routine.exercises?.filter(e => e.isActive !== false).length || 0} ejercicios</div>
-                </button>
-                <button
-                  onClick={() => setRoutineForHistory(routine)}
-                  className="w-16 bg-emerald-400/10 text-emerald-400 border border-emerald-400/20 rounded-2xl flex flex-col items-center justify-center hover:bg-emerald-400/20 transition-colors shadow-sm"
-                  title={`Historial de ${routine.title}`}
-                >
-                  <History className="w-5 h-5" />
-                </button>
+            <div className="text-center py-10">
+              <h2 className="text-xl font-bold mb-6 text-emerald-400">¿Qué rutina vas a hacer este día?</h2>
+              <div className="space-y-4 px-4">
+                {Object.values(routineConfig).map(routine => (
+                  <div key={routine.id} className="flex gap-2">
+                    <button 
+                      onClick={() => selectRoutineForDay(routine.id)}
+                      className="flex-grow py-4 px-5 bg-black/40 border border-white/10 rounded-2xl flex items-center justify-between hover:bg-white/5 hover:border-emerald-400/50 transition-colors"
+                     >
+                      <div className="text-lg font-semibold text-gray-200">{routine.title}</div>
+                      <div className="text-sm text-gray-500">{routine.exercises?.filter(e => e.isActive !== false).length || 0} ejercicios</div>
+                    </button>
+                  </div>
+                ))}
               </div>
-            ))}
-            <button 
-              onClick={createNewRoutine}
-              className="w-full py-4 mt-6 bg-emerald-400/10 text-emerald-400 border border-emerald-400/30 rounded-2xl font-semibold flex items-center justify-center gap-2 hover:bg-emerald-400/20 transition-colors"
-            >
-              <Plus className="w-5 h-5" /> Nueva Rutina
-            </button>
-          </div>
-          
-          <div className="mt-12 text-center text-sm text-gray-500">
-             Al seleccionar una rutina, estarás vinculando los ejercicios de hoy a dicha plantilla. ¡Puedes cambiarla cuando quieras!
-          </div>
-        </div>
+            </div>
       ) : (
         <>
           <div className="flex flex-col mb-6">
@@ -378,12 +517,14 @@ export default function App() {
                     >
                       <History className="w-4 h-4" />
                     </button>
-                    <button 
-                      onClick={unlinkRoutineFromDay}
-                      className="text-xs font-semibold text-orange-400 bg-orange-400/10 px-3 py-2 rounded-lg hover:bg-orange-400/20 whitespace-nowrap transition-colors"
-                    >
-                      Cambiar
-                    </button>
+                    {!currentLogHasData && (
+                        <button 
+                          onClick={unlinkRoutineFromDay}
+                          className="text-xs font-semibold text-orange-400 bg-orange-400/10 px-3 py-2 rounded-lg hover:bg-orange-400/20 whitespace-nowrap transition-colors"
+                        >
+                          Cambiar
+                        </button>
+                    )}
                   </div>
                 </div>
               )}
@@ -637,6 +778,8 @@ export default function App() {
           onAdd={addExercise} 
           exerciseBank={exerciseBank}
         />
+      )}
+        </>
       )}
         </>
       )}
