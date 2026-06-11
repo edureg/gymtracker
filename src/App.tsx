@@ -225,6 +225,7 @@ export default function App() {
   const todayLogState = getDayLog(todayDateObj);
   const todayRoutineId = todayLogState.routineId;
   const todayRoutineObj = todayRoutineId ? routineConfig[todayRoutineId] : null;
+  const todayHasFinishedMetrics = !!(todayLogState.calories || todayLogState.duration || todayLogState.avgHeartRate || todayLogState.maxHeartRate);
 
   const moveExercise = (exIndex: number, direction: number) => {
     if (!activeRoutineId || !currentDayRoutine) return;
@@ -383,7 +384,9 @@ export default function App() {
 
           {todayRoutineObj ? (
              <div className="bg-emerald-400/10 border border-emerald-400/30 p-5 rounded-2xl mb-8">
-                <h2 className="text-emerald-400 font-bold mb-2">Entrenamiento de hoy en curso</h2>
+                <h2 className="text-emerald-400 font-bold mb-2">
+                   {todayHasFinishedMetrics ? 'Entrenamiento de hoy finalizado' : 'Entrenamiento de hoy en curso'}
+                </h2>
                 <p className="text-gray-200 text-lg mb-4">{todayRoutineObj.title}</p>
                 <button 
                    onClick={() => {
@@ -392,7 +395,7 @@ export default function App() {
                    }}
                    className="w-full py-3 bg-emerald-400 text-black font-bold rounded-xl shadow-[0_0_15px_rgba(52,211,153,0.3)] hover:bg-emerald-300 transition-colors"
                 >
-                   Continuar Entrenamiento
+                   {todayHasFinishedMetrics ? 'Ver / Editar Entrenamiento' : 'Continuar Entrenamiento'}
                 </button>
              </div>
           ) : (
@@ -704,6 +707,10 @@ export default function App() {
           </label>
         </div>
       )}
+        </>
+      )}
+        </>
+      )}
 
       <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3">
         <button 
@@ -778,10 +785,6 @@ export default function App() {
           onAdd={addExercise} 
           exerciseBank={exerciseBank}
         />
-      )}
-        </>
-      )}
-        </>
       )}
     </div>
   );
