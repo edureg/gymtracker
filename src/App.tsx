@@ -172,7 +172,39 @@ export default function App() {
   }, [refreshTrigger]);
 
   useEffect(() => {
-    setDayLog(getDayLog(currentDate));
+    const log = getDayLog(currentDate);
+    const routines = loadRoutineConfig();
+    
+    // SELF HEALING FOR CORRUPTED routineId
+    const loggedExerciseIds = Object.keys(log).filter(key => 
+        !['routineId', '_day_note_', 'calories', 'duration', 'avgHeartRate', 'maxHeartRate'].includes(key) &&
+        Object.keys(log[key]).some(setKey => setKey !== 'note' && (log[key][setKey].reps || log[key][setKey].weight || log[key][setKey].time || log[key][setKey].done))
+    );
+
+    if (loggedExerciseIds.length > 0 && log.routineId && routines[log.routineId]) {
+        const currentRoutineExIds = routines[log.routineId].exercises.map((e: any) => e.id);
+        const hasMatchingEx = loggedExerciseIds.some(id => currentRoutineExIds.includes(id));
+        
+        if (!hasMatchingEx) {
+            let bestMatchId = null;
+            let bestMatchCount = 0;
+            for (const rId of Object.keys(routines)) {
+                if (rId === log.routineId) continue;
+                const rExIds = routines[rId].exercises.map((e: any) => e.id);
+                const matchCount = loggedExerciseIds.filter(id => rExIds.includes(id)).length;
+                if (matchCount > bestMatchCount) {
+                    bestMatchCount = matchCount;
+                    bestMatchId = rId;
+                }
+            }
+            if (bestMatchId) {
+                log.routineId = bestMatchId;
+                saveDayLog(currentDate, log);
+            }
+        }
+    }
+
+    setDayLog(log);
   }, [currentDate, refreshTrigger]);
 
   useEffect(() => {
@@ -301,7 +333,7 @@ export default function App() {
             if (!['routineId', '_day_note_', 'calories', 'duration', 'avgHeartRate', 'maxHeartRate'].includes(key)) {
                const exData = tLog[key];
                for (const setKey of Object.keys(exData)) {
-                  if (setKey !== 'note' && (exData[setKey].reps || exData[setKey].weight || exData[setKey].time)) {
+                  if (setKey !== 'note' && (exData[setKey].reps || exData[setKey].weight || exData[setKey].time || exData[setKey].done)) {
                      tLogHasData = true;
                      break;
                   }
@@ -488,7 +520,7 @@ export default function App() {
               <h1 className="text-3xl font-black tracking-tight bg-gradient-to-br from-white via-gray-200 to-gray-500 bg-clip-text text-transparent mb-1">
                 Gym Tracker
               </h1>
-              <div className="text-xs font-semibold text-emerald-400/80 tracking-widest uppercase">Version 10.6</div>
+              <div className="text-xs font-semibold text-emerald-400/80 tracking-widest uppercase">Version 10.7</div>
             </div>
             <button 
               onClick={openExportModal}
