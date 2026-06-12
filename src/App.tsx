@@ -20,10 +20,20 @@ export default function App() {
   const [currentView, _setCurrentView] = useState<'home' | 'workout' | 'edit_routine' | 'calendar'>('home');
   const [editingRoutineId, setEditingRoutineId] = useState<string | null>(null);
 
+  const unlinkRoutineFromDayRef = useRef<() => void>(() => {});
+  const currentLogHasDataRef = useRef(false);
+  const currentViewRef = useRef(currentView);
+
+  useEffect(() => {
+    currentLogHasDataRef.current = currentLogHasData;
+    currentViewRef.current = currentView;
+    unlinkRoutineFromDayRef.current = unlinkRoutineFromDay;
+  });
+
   const setCurrentView = (view: 'home' | 'workout' | 'edit_routine' | 'calendar') => {
     _setCurrentView((prev) => {
       if (prev !== view) {
-        window.history.pushState({ view }, '');
+        window.history.pushState({ view }, '', view === 'home' ? window.location.pathname : '#' + view);
       }
       return view;
     });
@@ -31,14 +41,26 @@ export default function App() {
 
   useEffect(() => {
     const handlePopState = (e: PopStateEvent) => {
+      let nextView = 'home';
       if (e.state && e.state.view) {
-        _setCurrentView(e.state.view);
-      } else {
-        _setCurrentView('home');
+        nextView = e.state.view;
+      } else if (window.location.hash) {
+        const hashView = window.location.hash.substring(1) as any;
+        if (['home', 'workout', 'edit_routine', 'calendar'].includes(hashView)) {
+           nextView = hashView;
+        }
       }
+      
+      if (currentViewRef.current === 'workout' && nextView === 'home' && !currentLogHasDataRef.current) {
+          unlinkRoutineFromDayRef.current();
+      }
+
+      _setCurrentView(nextView as any);
     };
     window.addEventListener('popstate', handlePopState);
-    window.history.replaceState({ view: 'home' }, '');
+    if (!window.location.hash || window.location.hash === '#home') {
+        window.history.replaceState({ view: 'home' }, '', window.location.pathname);
+    }
 
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
@@ -429,7 +451,7 @@ export default function App() {
               <h1 className="text-3xl font-black tracking-tight bg-gradient-to-br from-white via-gray-200 to-gray-500 bg-clip-text text-transparent mb-1">
                 Gym Tracker
               </h1>
-              <div className="text-xs font-semibold text-emerald-400/80 tracking-widest uppercase">Version 10.4</div>
+              <div className="text-xs font-semibold text-emerald-400/80 tracking-widest uppercase">Version 10.5</div>
             </div>
             <button 
               onClick={() => setIsExportModalOpen(true)}
@@ -578,6 +600,15 @@ export default function App() {
                  saveRoutineConfig(newConf);
               }}
               onClose={() => {
+                  if (editingRoutineId) {
+                      const r = routineConfig[editingRoutineId];
+                      if (r && r.title === 'Nueva Rutina' && (!r.exercises || r.exercises.length === 0)) {
+                          const newConf = { ...routineConfig };
+                          delete newConf[editingRoutineId];
+                          setRoutineConfig(newConf);
+                          saveRoutineConfig(newConf);
+                      }
+                  }
                   setCurrentView('home');
                   setEditingRoutineId(null);
               }}
@@ -604,7 +635,12 @@ export default function App() {
         <>
           <header className="flex justify-between items-center mb-6">
             <button 
-              onClick={() => setCurrentView('home')}
+              onClick={() => {
+                if (!currentLogHasData) {
+                    unlinkRoutineFromDay();
+                }
+                setCurrentView('home');
+              }}
               className="flex items-center gap-2 text-gray-400 hover:text-emerald-400 transition-colors"
             >
               <Home className="w-5 h-5" /> <span className="text-sm font-semibold">Menú</span>
