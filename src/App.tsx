@@ -17,8 +17,32 @@ export default function App() {
   const [isTimerOpen, setIsTimerOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [routineForHistory, setRoutineForHistory] = useState<Routine | null>(null);
-  const [currentView, setCurrentView] = useState<'home' | 'workout' | 'edit_routine' | 'calendar'>('home');
+  const [currentView, _setCurrentView] = useState<'home' | 'workout' | 'edit_routine' | 'calendar'>('home');
   const [editingRoutineId, setEditingRoutineId] = useState<string | null>(null);
+
+  const setCurrentView = (view: 'home' | 'workout' | 'edit_routine' | 'calendar') => {
+    _setCurrentView((prev) => {
+      if (prev !== view) {
+        window.history.pushState({ view }, '');
+      }
+      return view;
+    });
+  };
+
+  useEffect(() => {
+    const handlePopState = (e: PopStateEvent) => {
+      if (e.state && e.state.view) {
+        _setCurrentView(e.state.view);
+      } else {
+        _setCurrentView('home');
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    window.history.replaceState({ view: 'home' }, '');
+
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -405,7 +429,7 @@ export default function App() {
               <h1 className="text-3xl font-black tracking-tight bg-gradient-to-br from-white via-gray-200 to-gray-500 bg-clip-text text-transparent mb-1">
                 Gym Tracker
               </h1>
-              <div className="text-xs font-semibold text-emerald-400/80 tracking-widest uppercase">Version 10.3</div>
+              <div className="text-xs font-semibold text-emerald-400/80 tracking-widest uppercase">Version 10.4</div>
             </div>
             <button 
               onClick={() => setIsExportModalOpen(true)}
@@ -774,13 +798,6 @@ export default function App() {
           className="w-14 h-14 rounded-full bg-gray-300 text-black flex items-center justify-center shadow-lg hover:scale-95 transition-transform"
         >
           <TimerIcon className="w-6 h-6" />
-        </button>
-        <button 
-          tabIndex={-1}
-          onClick={handleExport}
-          className="w-14 h-14 rounded-full bg-emerald-400 text-black flex items-center justify-center shadow-[0_4px_15px_rgba(52,211,153,0.4)] hover:scale-95 transition-transform"
-        >
-          <Download className="w-6 h-6" />
         </button>
       </div>
 
