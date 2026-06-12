@@ -23,11 +23,15 @@ export default function App() {
   const unlinkRoutineFromDayRef = useRef<() => void>(() => {});
   const currentLogHasDataRef = useRef(false);
   const currentViewRef = useRef(currentView);
+  const editingRoutineIdRef = useRef(editingRoutineId);
+  const routineConfigRef = useRef(routineConfig);
 
   useEffect(() => {
     currentLogHasDataRef.current = currentLogHasData;
     currentViewRef.current = currentView;
     unlinkRoutineFromDayRef.current = unlinkRoutineFromDay;
+    editingRoutineIdRef.current = editingRoutineId;
+    routineConfigRef.current = routineConfig;
   });
 
   const setCurrentView = (view: 'home' | 'workout' | 'edit_routine' | 'calendar') => {
@@ -39,8 +43,37 @@ export default function App() {
     });
   };
 
+  const openHistoryModal = (routine: Routine) => {
+      setRoutineForHistory(routine);
+      window.history.pushState({ modal: 'history', view: currentView }, '', '#history');
+  };
+
+  const closeHistoryModal = () => {
+      setRoutineForHistory(null);
+      if (window.history.state?.modal === 'history') {
+          window.history.back();
+      }
+  };
+
+  const openExportModal = () => {
+      setIsExportModalOpen(true);
+      window.history.pushState({ modal: 'export', view: currentView }, '', '#export');
+  };
+
+  const closeExportModal = () => {
+      setIsExportModalOpen(false);
+      if (window.history.state?.modal === 'export') {
+          window.history.back();
+      }
+  };
+
   useEffect(() => {
     const handlePopState = (e: PopStateEvent) => {
+      if (routineForHistory || isExportModalOpen) {
+          setRoutineForHistory(null);
+          setIsExportModalOpen(false);
+      }
+
       let nextView = 'home';
       if (e.state && e.state.view) {
         nextView = e.state.view;
@@ -53,6 +86,17 @@ export default function App() {
       
       if (currentViewRef.current === 'workout' && nextView === 'home' && !currentLogHasDataRef.current) {
           unlinkRoutineFromDayRef.current();
+      }
+
+      if (currentViewRef.current === 'edit_routine' && editingRoutineIdRef.current) {
+          const r = routineConfigRef.current[editingRoutineIdRef.current];
+          if (r && r.title === 'Nueva Rutina' && (!r.exercises || r.exercises.length === 0)) {
+              const newConf = { ...routineConfigRef.current };
+              delete newConf[editingRoutineIdRef.current];
+              setRoutineConfig(newConf);
+              saveRoutineConfig(newConf);
+          }
+          setEditingRoutineId(null);
       }
 
       _setCurrentView(nextView as any);
@@ -172,7 +216,7 @@ export default function App() {
   };
 
   const handleExport = () => {
-    setIsExportModalOpen(true);
+    openExportModal();
   };
 
   const executeExport = (type: 'csv' | 'json' | 'both') => {
@@ -182,7 +226,7 @@ export default function App() {
     if (type === 'json' || type === 'both') {
       exportJSON(routineConfig);
     }
-    setIsExportModalOpen(false);
+    closeExportModal();
   };
 
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -289,13 +333,6 @@ export default function App() {
     const newConfig = { ...routineConfig, [rId]: newRoutine };
     setRoutineConfig(newConfig);
     saveRoutineConfig(newConfig);
-    
-    const today = new Date();
-    const tLog = getDayLog(today);
-    const newLog = { ...tLog, routineId: rId };
-    saveDayLog(today, newLog);
-    setCurrentDate(today);
-    setRefreshTrigger(prev => prev + 1);
     
     // Switch to edit routine view for the new template
     setEditingRoutineId(rId);
@@ -451,10 +488,10 @@ export default function App() {
               <h1 className="text-3xl font-black tracking-tight bg-gradient-to-br from-white via-gray-200 to-gray-500 bg-clip-text text-transparent mb-1">
                 Gym Tracker
               </h1>
-              <div className="text-xs font-semibold text-emerald-400/80 tracking-widest uppercase">Version 10.5</div>
+              <div className="text-xs font-semibold text-emerald-400/80 tracking-widest uppercase">Version 10.6</div>
             </div>
             <button 
-              onClick={() => setIsExportModalOpen(true)}
+              onClick={openExportModal}
               className="p-3 bg-slate-900 border border-white/10 rounded-xl hover:bg-white/5 transition-colors shadow-sm cursor-pointer"
             >
               <Settings className="w-5 h-5 text-gray-400" />
@@ -545,7 +582,7 @@ export default function App() {
                          Entrenar Hoy
                       </button>
                       <button 
-                         onClick={() => setRoutineForHistory(routine)}
+                         onClick={() => openHistoryModal(routine)}
                          className="px-4 py-3 bg-black/40 text-gray-300 border border-white/5 rounded-xl font-semibold flex items-center justify-center hover:bg-white/10 transition-colors"
                          title="Historial de esta rutina"
                       >
@@ -698,7 +735,7 @@ export default function App() {
                   <span>{currentDayRoutine?.title}</span>
                   <div className="flex gap-1 ml-auto">
                     <button 
-                      onClick={() => setRoutineForHistory(currentDayRoutine)}
+                      onClick={() => openHistoryModal(currentDayRoutine)}
                       className="p-2 bg-emerald-400/10 text-emerald-400 rounded-lg hover:bg-emerald-400/20 transition-colors"
                       title="Ver Historial de Rutina"
                     >
@@ -841,7 +878,7 @@ export default function App() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="bg-slate-900 border border-white/10 p-6 rounded-2xl w-full max-w-sm relative">
             <button 
-              onClick={() => setIsExportModalOpen(false)}
+              onClick={closeExportModal}
               className="absolute top-4 right-4 text-gray-400 hover:text-white"
             >
               <X className="w-5 h-5" />
@@ -881,7 +918,7 @@ export default function App() {
            routineId={routineForHistory.id}
            routineName={routineForHistory.title}
            routineExercises={routineForHistory.exercises || []}
-           onClose={() => setRoutineForHistory(null)}
+           onClose={closeHistoryModal}
          />
       )}
 
