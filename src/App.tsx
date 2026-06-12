@@ -1,28 +1,28 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, ChevronRight, PenLine, Plus, Unlock, Lock, Download, Upload, Timer as TimerIcon, History, X, Home, Calendar, CheckCircle } from 'lucide-react';
-import { RoutineConfig, DayLog, Exercise } from './types';
+import { ChevronLeft, ChevronRight, PenLine, Plus, Unlock, Lock, Download, Upload, Timer as TimerIcon, History, X, Home, Calendar, CheckCircle, Settings } from 'lucide-react';
+import { RoutineConfig, DayLog, Exercise, Routine } from './types';
 import { loadRoutineConfig, saveRoutineConfig, getDayLog, saveDayLog, getLastDayMetrics } from './utils/storage';
 import { exportCSV, exportJSON, importFile } from './utils/exportImport';
 import ExerciseCard from './components/ExerciseCard';
 import TimerPanel from './components/TimerPanel';
 import AddExerciseModal from './components/AddExerciseModal';
 import RoutineHistoryModal from './components/RoutineHistoryModal';
+import EditRoutineView from './components/EditRoutineView';
 
 export default function App() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [routineConfig, setRoutineConfig] = useState<RoutineConfig>({});
   const [dayLog, setDayLog] = useState<DayLog>({});
-  const [isEditMode, setIsEditMode] = useState(false);
   const [isTimerOpen, setIsTimerOpen] = useState(false);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [routineForHistory, setRoutineForHistory] = useState<Routine | null>(null);
-  const [currentView, setCurrentView] = useState<'home' | 'workout'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'workout' | 'edit_routine'>('home');
+  const [editingRoutineId, setEditingRoutineId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  const activeRoutineId = dayLog.routineId;
+  const activeRoutineId = currentView === 'edit_routine' ? editingRoutineId : dayLog.routineId;
   const currentDayRoutine = activeRoutineId ? routineConfig[activeRoutineId] : null;
 
   const lastDayMetrics = getLastDayMetrics(currentDate, currentDayRoutine);
@@ -128,7 +128,6 @@ export default function App() {
     setRoutineConfig(newConfig);
     saveRoutineConfig(newConfig);
     handleDayMetricChange('routineId', rId);
-    setIsEditMode(true);
   };
 
   const unlinkRoutineFromDay = () => {
@@ -146,7 +145,6 @@ export default function App() {
     setRoutineConfig(newConfig);
     saveRoutineConfig(newConfig);
     unlinkRoutineFromDay();
-    setIsEditMode(false);
   };
 
   const selectRoutineForDay = (id: string) => {
@@ -202,8 +200,10 @@ export default function App() {
     saveDayLog(today, newLog);
     setCurrentDate(today);
     setRefreshTrigger(prev => prev + 1);
-    setCurrentView('workout');
-    setIsEditMode(true);
+    
+    // Switch to edit routine view for the new template
+    setEditingRoutineId(rId);
+    setCurrentView('edit_routine');
   };
 
   let currentLogHasData = false;
@@ -359,7 +359,7 @@ export default function App() {
 
   // Compute Exercise Bank (all unique exercises across all days)
   const allExercisesMap = new Map<string, Exercise>();
-  Object.values(routineConfig).forEach(day => {
+  (Object.values(routineConfig) as Routine[]).forEach(day => {
     day.exercises?.forEach(ex => {
       if (!allExercisesMap.has(ex.id)) {
         allExercisesMap.set(ex.id, ex);
@@ -374,99 +374,177 @@ export default function App() {
   return (
     <div className="max-w-[600px] mx-auto pb-24 px-4 pt-5">
       {currentView === 'home' ? (
-        <>
-          <header className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
-              Gym Tracker <span className="text-[0.6em] text-gray-400">v9.14</span>
-            </h1>
-            <div className="text-[0.7em] text-emerald-400">React v9.14 OK</div>
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <header className="flex justify-between items-end mb-8 pt-2">
+            <div>
+              <h1 className="text-3xl font-black tracking-tight bg-gradient-to-br from-white via-gray-200 to-gray-500 bg-clip-text text-transparent mb-1">
+                Gym Tracker
+              </h1>
+              <div className="text-xs font-semibold text-emerald-400/80 tracking-widest uppercase">Version 10.0</div>
+            </div>
+            <button 
+              onClick={() => setIsExportModalOpen(true)}
+              className="p-3 bg-slate-900 border border-white/10 rounded-xl hover:bg-white/5 transition-colors shadow-sm cursor-pointer"
+            >
+              <Settings className="w-5 h-5 text-gray-400" />
+            </button>
           </header>
 
           {todayRoutineObj ? (
              todayHasFinishedMetrics ? (
-                <div className="bg-slate-900/60 border border-emerald-500/50 p-5 rounded-2xl mb-8 flex flex-col items-center text-center">
-                   <div className="w-12 h-12 bg-emerald-500/20 rounded-full flex items-center justify-center mb-3">
-                      <CheckCircle className="w-6 h-6 text-emerald-400" />
+                <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950/30 border border-emerald-500/30 p-6 rounded-3xl mb-10 flex flex-col items-center text-center shadow-2xl relative overflow-hidden">
+                   <div className="absolute inset-0 bg-[linear-gradient(to_right,#34d39911_1px,transparent_1px),linear-gradient(to_bottom,#34d39911_1px,transparent_1px)] bg-[size:14px_24px] pointer-events-none"></div>
+                   <div className="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center mb-4 z-10">
+                      <CheckCircle className="w-8 h-8 text-emerald-400" />
                    </div>
-                   <h2 className="text-emerald-400 text-lg font-bold mb-1">¡Entrenamiento Finalizado!</h2>
-                   <p className="text-gray-300 mb-5">{todayRoutineObj.title}</p>
+                   <h2 className="text-emerald-400 text-xl font-black mb-1 z-10">¡Entrenamiento de Hoy Finalizado!</h2>
+                   <p className="text-gray-300 font-medium mb-6 z-10">{todayRoutineObj.title}</p>
                    <button 
                       onClick={() => {
                          setCurrentDate(new Date());
                          setCurrentView('workout');
                       }}
-                      className="w-full py-3 bg-black/40 text-emerald-400 border border-emerald-400/20 font-bold rounded-xl hover:bg-emerald-400/10 transition-colors"
+                      className="w-full py-3.5 bg-black/60 backdrop-blur-md text-emerald-400 border border-emerald-400/30 font-bold rounded-xl hover:bg-emerald-400/10 transition-colors z-10"
                    >
-                      Ver / Editar
+                      Ver / Editar Registro
                    </button>
                 </div>
              ) : (
-                <div className="bg-emerald-400/10 border border-emerald-400/30 p-5 rounded-2xl mb-8">
-                   <h2 className="text-emerald-400 font-bold mb-2">Entrenamiento de hoy en curso</h2>
-                   <p className="text-gray-200 text-lg mb-4">{todayRoutineObj.title}</p>
-                   <button 
-                      onClick={() => {
-                         setCurrentDate(new Date());
-                         setCurrentView('workout');
-                      }}
-                      className="w-full py-3 bg-emerald-400 text-black font-bold rounded-xl shadow-[0_0_15px_rgba(52,211,153,0.3)] hover:bg-emerald-300 transition-colors"
-                   >
-                      Continuar Entrenamiento
-                   </button>
+                <div className="bg-gradient-to-br from-emerald-500 to-emerald-700 p-1 rounded-3xl mb-10 shadow-[0_0_40px_rgba(52,211,153,0.3)]">
+                   <div className="bg-slate-900/90 rounded-[22px] p-6 backdrop-blur-xl relative overflow-hidden">
+                       <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-400/10 rounded-full blur-3xl"></div>
+                       <h2 className="text-emerald-400 font-bold mb-2 flex items-center gap-2">
+                           <TimerIcon className="w-5 h-5" /> Entrenamiento en curso
+                       </h2>
+                       <p className="text-white text-2xl font-black mb-6">{todayRoutineObj.title}</p>
+                       <button 
+                          onClick={() => {
+                             setCurrentDate(new Date());
+                             setCurrentView('workout');
+                          }}
+                          className="w-full py-4 bg-emerald-400 text-black font-black text-lg rounded-xl shadow-lg hover:bg-emerald-300 transition-colors"
+                       >
+                          Continuar Entrenamiento
+                       </button>
+                   </div>
                 </div>
              )
           ) : (
-             <div className="mb-8">
-                <h2 className="text-xl font-bold text-white mb-2">¡Hola! ¿Qué entrenamos hoy?</h2>
-                <p className="text-gray-400 text-sm">Seleccioná una rutina de tu lista para comenzar a registrar tu actividad de hoy.</p>
+             <div className="mb-10 pl-2 border-l-4 border-emerald-400/50">
+                <h2 className="text-2xl font-bold text-white mb-1 tracking-tight">¿Qué entrenamos hoy?</h2>
+                <p className="text-gray-400 text-sm">Selecciona una rutina para comenzar.</p>
              </div>
           )}
 
-          <div className="space-y-4">
-             <h3 className="text-lg font-bold text-gray-300 border-b border-white/10 pb-2">Tus Rutinas</h3>
-             {Object.values(routineConfig).map(routine => (
-                <div key={routine.id} className="bg-slate-900/60 border border-white/10 rounded-2xl p-4 flex flex-col gap-3 hover:bg-white/5 transition-colors">
-                   <div className="flex justify-between items-center">
-                      <span className="text-lg font-bold text-emerald-400">{routine.title}</span>
-                      <span className="text-sm text-gray-400">{routine.exercises?.filter(e => e.isActive !== false).length || 0} ejercicios</span>
+          <div className="space-y-5">
+             <div className="flex items-center justify-between mb-2">
+                 <h3 className="text-lg font-bold text-gray-300">Tus Rutinas</h3>
+                 <button 
+                   onClick={createNewRoutineFromHome}
+                   className="text-emerald-400 bg-emerald-400/10 hover:bg-emerald-400/20 p-2 rounded-xl transition-colors cursor-pointer"
+                 >
+                   <Plus className="w-5 h-5" />
+                 </button>
+             </div>
+
+             {(Object.values(routineConfig) as Routine[]).map((routine: Routine) => (
+                <div key={routine.id} className="bg-slate-900 border border-white/5 rounded-3xl p-5 flex flex-col gap-4 hover:border-white/10 transition-colors group">
+                   <div className="flex justify-between items-start">
+                      <div>
+                          <h4 className="text-xl font-bold text-white group-hover:text-emerald-400 transition-colors mb-1">{routine.title}</h4>
+                          <div className="text-sm text-gray-500">{routine.exercises?.filter(e => e.isActive !== false).length || 0} ejercicios</div>
+                      </div>
+                      <button 
+                          onClick={() => {
+                              setEditingRoutineId(routine.id);
+                              setCurrentView('edit_routine');
+                          }}
+                          className="bg-black/40 text-gray-400 hover:text-white p-2.5 rounded-xl border border-white/5 hover:border-white/20 transition-all cursor-pointer"
+                          title="Editar Plantilla"
+                      >
+                          <PenLine className="w-4 h-4" />
+                      </button>
                    </div>
-                   <div className="grid grid-cols-2 gap-2 mt-2">
+                   
+                   <div className="flex gap-2">
                       <button 
                          onClick={() => startRoutineToday(routine.id)}
-                         className="py-2.5 bg-black/40 text-emerald-400 border border-emerald-400/20 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-emerald-400/10 transition-colors"
+                         className="flex-1 py-3 bg-white/5 text-emerald-400 border border-emerald-400/20 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-400/10 transition-colors"
                       >
-                         <Plus className="w-4 h-4" /> Entrenar Hoy
+                         Entrenar Hoy
                       </button>
                       <button 
                          onClick={() => setRoutineForHistory(routine)}
-                         className="py-2.5 bg-black/40 text-gray-300 border border-white/10 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-white/10 transition-colors"
+                         className="px-4 py-3 bg-black/40 text-gray-300 border border-white/5 rounded-xl font-semibold flex items-center justify-center hover:bg-white/10 transition-colors"
+                         title="Historial de esta rutina"
                       >
-                         <History className="w-4 h-4" /> Historial
+                         <History className="w-5 h-5" />
                       </button>
                    </div>
                 </div>
              ))}
              
-             <button 
-               onClick={createNewRoutineFromHome}
-               className="w-full py-4 mt-2 bg-transparent text-emerald-400 border-2 border-dashed border-emerald-400/30 rounded-2xl font-semibold flex items-center justify-center gap-2 hover:bg-emerald-400/10 transition-colors"
-             >
-               <Plus className="w-5 h-5" /> Crear Nueva Rutina
-             </button>
+             {Object.keys(routineConfig).length === 0 && (
+                 <div className="text-center py-12 px-4 bg-slate-900/50 border border-dashed border-white/10 rounded-3xl">
+                     <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4">
+                         <PenLine className="w-8 h-8 text-gray-500" />
+                     </div>
+                     <h3 className="text-lg font-bold text-gray-300 mb-2">No tienes rutinas</h3>
+                     <p className="text-sm text-gray-500 mb-6">Crea tu primera plantilla de ejercicios para empezar a registrar.</p>
+                     <button 
+                         onClick={createNewRoutineFromHome}
+                         className="px-6 py-3 bg-emerald-400 text-black font-bold rounded-xl shadow-lg hover:bg-emerald-300 transition-colors"
+                     >
+                         Crear Primera Rutina
+                     </button>
+                 </div>
+             )}
           </div>
 
-          <div className="mt-10 text-center pt-6">
+          <div className="mt-12 text-center pb-8 border-t border-white/10 pt-8">
              <button
                 onClick={() => {
                    setCurrentDate(new Date());
                    setCurrentView('workout');
                 }}
-                className="text-gray-400 hover:text-white transition-colors flex items-center justify-center gap-2 mx-auto"
+                className="text-gray-400 hover:text-white transition-colors flex items-center justify-center gap-2 mx-auto bg-black/30 py-3 px-6 rounded-2xl border border-white/5"
              >
-                <Calendar className="w-4 h-4"/> Ver mi Histórico (Navegar días)
+                <Calendar className="w-4 h-4"/> Ver Calendario / Días pasados
              </button>
           </div>
-        </>
+        </div>
+      ) : currentView === 'edit_routine' && editingRoutineId ? (
+          <EditRoutineView 
+              routine={routineConfig[editingRoutineId]}
+              exerciseBank={Array.from(allExercisesMap.values())}
+              onUpdate={(updated) => {
+                 const newConf = {...routineConfig, [updated.id]: updated};
+                 setRoutineConfig(newConf);
+                 saveRoutineConfig(newConf);
+              }}
+              onClose={() => {
+                  setCurrentView('home');
+                  setEditingRoutineId(null);
+              }}
+              onDelete={() => {
+                 const newConf = {...routineConfig};
+                 delete newConf[editingRoutineId];
+                 setRoutineConfig(newConf);
+                 saveRoutineConfig(newConf);
+                 
+                 // if deleted routine was today's routine, unlink it
+                 const tLog = getDayLog(currentDate);
+                 if (tLog.routineId === editingRoutineId) {
+                     const newLog = { ...tLog };
+                     delete newLog.routineId;
+                     setDayLog(newLog);
+                     saveDayLog(currentDate, newLog);
+                 }
+
+                 setCurrentView('home');
+                 setEditingRoutineId(null);
+              }}
+          />
       ) : (
         <>
           <header className="flex justify-between items-center mb-6">
@@ -497,11 +575,11 @@ export default function App() {
         <button tabIndex={-1} onClick={() => changeDate(1)} className="p-2 text-emerald-400 hover:bg-white/5 rounded-lg"><ChevronRight /></button>
       </div>
 
-      {!activeRoutineId ? (
+        {Object.keys(routineConfig).length > 0 && !activeRoutineId ? (
             <div className="text-center py-10">
               <h2 className="text-xl font-bold mb-6 text-emerald-400">¿Qué rutina vas a hacer este día?</h2>
               <div className="space-y-4 px-4">
-                {Object.values(routineConfig).map(routine => (
+                {(Object.values(routineConfig) as Routine[]).map((routine: Routine) => (
                   <div key={routine.id} className="flex gap-2">
                     <button 
                       onClick={() => selectRoutineForDay(routine.id)}
@@ -518,16 +596,7 @@ export default function App() {
         <>
           <div className="flex flex-col mb-6">
             <div className="flex justify-between items-start mb-2">
-              {isEditMode ? (
-                <input 
-                  type="text"
-                  value={currentDayRoutine?.title || ''}
-                  onChange={(e) => updateRoutineTitle(e.target.value)}
-                  placeholder="Nombre de la rutina"
-                  className="bg-transparent border-b border-emerald-400 text-lg font-bold text-white focus:outline-none w-[60%] pb-1"
-                />
-              ) : (
-                <div className="text-xl font-bold text-emerald-400 flex flex-wrap items-center gap-2">
+              <div className="text-xl font-bold text-emerald-400 flex flex-wrap items-center gap-2">
                   <span>{currentDayRoutine?.title}</span>
                   <div className="flex gap-1 ml-auto">
                     <button 
@@ -547,24 +616,6 @@ export default function App() {
                     )}
                   </div>
                 </div>
-              )}
-
-              {isEditMode && (
-                 <div className="flex flex-col gap-2 items-end">
-                    <button 
-                      onClick={unlinkRoutineFromDay}
-                      className="text-xs text-orange-400 bg-orange-400/10 px-3 py-1.5 rounded-lg hover:bg-orange-400/20 whitespace-nowrap"
-                    >
-                      Desvincular de Hoy
-                    </button>
-                    <button 
-                      onClick={deleteCurrentRoutine}
-                      className="text-xs text-red-500 bg-red-500/10 px-3 py-1.5 rounded-lg hover:bg-red-500/20 whitespace-nowrap"
-                    >
-                      Borrar Rutina (Global)
-                    </button>
-                 </div>
-              )}
             </div>
           </div>
 
@@ -592,39 +643,19 @@ export default function App() {
               exercise={ex}
               dayLog={dayLog[ex.id] || {}}
               currentDate={currentDate}
-              isEditMode={isEditMode}
+              isEditMode={false}
               onUpdateLog={(setIdx, field, val) => updateExerciseLog(ex.id, setIdx, field, val)}
               onToggleSet={(setIdx) => toggleSetDone(ex.id, setIdx)}
               onUpdateNote={(note) => updateSessionNote(ex.id, note)}
-              onMoveUp={() => moveExercise(idx, -1)}
-              onMoveDown={() => moveExercise(idx, 1)}
-              canMoveUp={idx > 0}
-              canMoveDown={idx < activeExercises.length - 1}
-              onDeactivate={() => toggleExerciseActive(ex.id, false)}
-              onChangeSets={(delta) => changeSets(ex.id, delta)}
-              onUpdateExerciseNotes={(notes) => updateExerciseNotes(ex.id, notes)}
+              onMoveUp={() => {}}
+              onMoveDown={() => {}}
+              canMoveUp={false}
+              canMoveDown={false}
+              onDeactivate={() => {}}
+              onChangeSets={() => {}}
+              onUpdateExerciseNotes={() => {}}
             />
           ))
-        )}
-
-        {isEditMode && inactiveExercises.length > 0 && (
-          <div className="mt-8 pt-6 border-t border-white/10">
-            <h3 className="text-gray-400 mb-4 font-medium">Ejercicios Desactivados</h3>
-            <div className="space-y-3">
-              {inactiveExercises.map(ex => (
-                <div key={ex.id} className="flex items-center justify-between bg-black/30 p-3 rounded-lg border border-white/5">
-                  <span className="text-gray-300">{ex.name}</span>
-                  <button 
-                    tabIndex={-1}
-                    onClick={() => toggleExerciseActive(ex.id, true)}
-                    className="text-emerald-400 text-sm px-3 py-1 bg-emerald-400/10 rounded-md hover:bg-emerald-400/20"
-                  >
-                    Restaurar
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
         )}
       </div>
 
@@ -693,37 +724,6 @@ export default function App() {
           </div>
         </div>
       </div>
-
-      {isEditMode && (
-        <button 
-          tabIndex={-1}
-          onClick={() => setIsAddModalOpen(true)}
-          className="w-full mt-5 bg-emerald-400 text-black font-semibold py-3 rounded-xl flex items-center justify-center gap-2 shadow-[0_0_10px_rgba(52,211,153,0.4)]"
-        >
-          <Plus className="w-5 h-5" /> Añadir Ejercicio
-        </button>
-      )}
-
-      <button 
-        tabIndex={-1}
-        onClick={() => setIsEditMode(!isEditMode)}
-        className={`w-full mt-4 py-2.5 rounded-lg border flex items-center justify-center gap-2 transition-colors ${
-          isEditMode 
-            ? 'border-red-500 text-red-500 hover:bg-red-500/10' 
-            : 'border-gray-500 text-gray-400 hover:bg-white/5'
-        }`}
-      >
-        {isEditMode ? <><Lock className="w-4 h-4" /> Finalizar Configuración</> : <><Unlock className="w-4 h-4" /> Configurar Rutina</>}
-      </button>
-
-      {isEditMode && (
-        <div className="mt-5 text-center">
-          <label className="w-full py-2.5 rounded-lg border border-emerald-400 text-emerald-400 flex items-center justify-center gap-2 cursor-pointer hover:bg-emerald-400/10 transition-colors">
-            <Upload className="w-4 h-4" /> Importar de Respaldo (CSV/JSON)
-            <input tabIndex={-1} type="file" accept=".csv,.json" className="hidden" ref={fileInputRef} onChange={handleImport} />
-          </label>
-        </div>
-      )}
         </>
       )}
         </>
@@ -795,14 +795,6 @@ export default function App() {
       )}
 
       {isTimerOpen && <TimerPanel onClose={() => setIsTimerOpen(false)} />}
-      
-      {isAddModalOpen && (
-        <AddExerciseModal 
-          onClose={() => setIsAddModalOpen(false)} 
-          onAdd={addExercise} 
-          exerciseBank={exerciseBank}
-        />
-      )}
     </div>
   );
 }
