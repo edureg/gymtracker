@@ -520,7 +520,7 @@ export default function App() {
               <h1 className="text-3xl font-black tracking-tight bg-gradient-to-br from-white via-gray-200 to-gray-500 bg-clip-text text-transparent mb-1">
                 Gym Tracker
               </h1>
-              <div className="text-xs font-semibold text-emerald-400/80 tracking-widest uppercase">Version 10.8</div>
+              <div className="text-xs font-semibold text-emerald-400/80 tracking-widest uppercase">Version 10.9</div>
             </div>
             <button 
               onClick={openExportModal}
@@ -915,7 +915,7 @@ export default function App() {
             >
               <X className="w-5 h-5" />
             </button>
-            <h2 className="text-xl font-bold mb-4">Exportar Datos</h2>
+            <h2 className="text-xl font-bold mb-4">Exportar / Restaurar</h2>
             <p className="text-sm text-gray-400 mb-6">
               Seleccioná en qué formato querés guardar tu respaldo. Podés usar cualquiera de los dos para luego importarlos.
             </p>
@@ -947,10 +947,10 @@ export default function App() {
                     <span className="font-semibold flex items-center gap-2">
                        <Upload className="w-5 h-5" /> Importar Backup
                     </span>
-                    <span className="text-xs text-blue-400/70 mt-1">Soporta .json y .csv</span>
+                    <span className="text-xs text-blue-400/70 mt-1">Soporta .json, .csv o .txt</span>
                     <input 
                       type="file" 
-                      accept=".csv,.json"
+                      accept=".csv,.json,.txt"
                       className="hidden"
                       onChange={handleImport}
                     />

@@ -99,10 +99,22 @@ export function exportJSON(currentRoutine: RoutineConfig) {
 }
 
 export function importFile(file: File, currentRoutine: RoutineConfig, onComplete: (newConfig?: RoutineConfig) => void) {
-    if (file.name.endsWith('.json')) {
+    if (file.name.endsWith('.json') || (file.name.endsWith('.txt') && file.type.includes('json'))) {
         importJSON(file, currentRoutine, onComplete);
-    } else {
+    } else if (file.name.endsWith('.csv')) {
         importCSV(file, currentRoutine, onComplete);
+    } else {
+        // Fallback or guess by reading first few characters
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const content = e.target?.result as string;
+            if (content && content.trim().startsWith('{')) {
+                importJSON(file, currentRoutine, onComplete);
+            } else {
+                importCSV(file, currentRoutine, onComplete);
+            }
+        };
+        reader.readAsText(file.slice(0, 10)); // just read first 10 bytes to guess
     }
 }
 
