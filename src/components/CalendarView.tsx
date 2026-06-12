@@ -136,15 +136,21 @@ export default function CalendarView({ initialDate, onSelectDate, onClose }: Pro
                         const isToday = dateStr === todayStr;
                         const isTrained = trainedDays.has(dateStr);
                         
+                        const todayObj = new Date();
+                        todayObj.setHours(0, 0, 0, 0);
+                        const isFuture = dayObj.date > todayObj;
+
                         return (
                             <button
                                 key={i}
                                 onClick={() => onSelectDate(dayObj.date)}
+                                disabled={isFuture}
                                 className={`
                                     relative aspect-square flex items-center justify-center rounded-2xl text-sm font-semibold transition-all
-                                    ${dayObj.isCurrentMonth ? 'text-white hover:bg-white/10' : 'text-gray-600 hover:text-gray-400 hover:bg-white/5'}
+                                    ${dayObj.isCurrentMonth ? (isFuture ? 'text-gray-500 cursor-not-allowed' : 'text-white hover:bg-white/10') : 'text-gray-600 hover:text-gray-400 hover:bg-white/5'}
                                     ${isToday && !isTrained ? 'bg-emerald-400/20 text-emerald-400 border border-emerald-400/50' : ''}
                                     ${isTrained ? 'bg-emerald-500 text-black shadow-[0_0_15px_rgba(52,211,153,0.3)] hover:bg-emerald-400' : ''}
+                                    ${isFuture && !dayObj.isCurrentMonth ? 'opacity-30 cursor-not-allowed pointer-events-none' : ''}
                                 `}
                             >
                                 <span className={!dayObj.isCurrentMonth && isTrained ? 'opacity-50' : ''}>{dayObj.date.getDate()}</span>

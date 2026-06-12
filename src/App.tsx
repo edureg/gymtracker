@@ -23,8 +23,57 @@ export default function App() {
 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  const activeRoutineId = currentView === 'edit_routine' ? editingRoutineId : dayLog.routineId;
-  const currentDayRoutine = activeRoutineId ? routineConfig[activeRoutineId] : null;
+  // Compute Exercise Bank (all unique exercises across all days)
+  const allExercisesMap = new Map<string, Exercise>();
+  (Object.values(routineConfig) as Routine[]).forEach(day => {
+    day.exercises?.forEach(ex => {
+      if (!allExercisesMap.has(ex.id)) {
+        allExercisesMap.set(ex.id, ex);
+      }
+    });
+  });
+
+  let activeRoutineId = currentView === 'edit_routine' ? editingRoutineId : dayLog.routineId;
+
+  let currentLogHasData = false;
+  if (dayLog) {
+     for (const key of Object.keys(dayLog)) {
+        if (!['routineId', '_day_note_', 'calories', 'duration', 'avgHeartRate', 'maxHeartRate'].includes(key)) {
+           const exData = dayLog[key];
+           for (const setKey of Object.keys(exData)) {
+              if (setKey !== 'note' && (exData[setKey].reps || exData[setKey].weight || exData[setKey].time)) {
+                 currentLogHasData = true;
+                 break;
+              }
+           }
+        }
+     }
+  }
+
+  let currentDayRoutine = activeRoutineId ? routineConfig[activeRoutineId] : null;
+
+  if (!currentDayRoutine && currentLogHasData && currentView === 'workout') {
+      activeRoutineId = "historic_imported";
+      
+      const historicExercises: Exercise[] = [];
+      Object.keys(dayLog).forEach(key => {
+          if (!['routineId', '_day_note_', 'calories', 'duration', 'avgHeartRate', 'maxHeartRate'].includes(key)) {
+              const existingEx = allExercisesMap.get(key);
+              historicExercises.push(existingEx || {
+                  id: key,
+                  name: key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                  notes: '',
+                  sets: Object.keys(dayLog[key]).filter(k => k !== 'note').length || 1,
+              });
+          }
+      });
+      
+      currentDayRoutine = {
+          id: "historic_imported",
+          title: "Histórico Libre",
+          exercises: historicExercises,
+      };
+  }
 
   const lastDayMetrics = getLastDayMetrics(currentDate, currentDayRoutine);
 
@@ -207,21 +256,6 @@ export default function App() {
     setCurrentView('edit_routine');
   };
 
-  let currentLogHasData = false;
-  if (dayLog) {
-     for (const key of Object.keys(dayLog)) {
-        if (!['routineId', '_day_note_', 'calories', 'duration', 'avgHeartRate', 'maxHeartRate'].includes(key)) {
-           const exData = dayLog[key];
-           for (const setKey of Object.keys(exData)) {
-              if (setKey !== 'note' && (exData[setKey].reps || exData[setKey].weight || exData[setKey].time)) {
-                 currentLogHasData = true;
-                 break;
-              }
-           }
-        }
-     }
-  }
-
   const todayDateObj = new Date();
   const todayLogState = getDayLog(todayDateObj);
   const todayRoutineId = todayLogState.routineId;
@@ -358,16 +392,6 @@ export default function App() {
 
   const isToday = new Date().toDateString() === currentDate.toDateString();
 
-  // Compute Exercise Bank (all unique exercises across all days)
-  const allExercisesMap = new Map<string, Exercise>();
-  (Object.values(routineConfig) as Routine[]).forEach(day => {
-    day.exercises?.forEach(ex => {
-      if (!allExercisesMap.has(ex.id)) {
-        allExercisesMap.set(ex.id, ex);
-      }
-    });
-  });
-  
   // Filter out exercises that are already active TODAY
   const activeIdsToday = new Set(activeExercises.map(e => e.id));
   const exerciseBank = Array.from(allExercisesMap.values()).filter(ex => !activeIdsToday.has(ex.id));
@@ -381,7 +405,7 @@ export default function App() {
               <h1 className="text-3xl font-black tracking-tight bg-gradient-to-br from-white via-gray-200 to-gray-500 bg-clip-text text-transparent mb-1">
                 Gym Tracker
               </h1>
-              <div className="text-xs font-semibold text-emerald-400/80 tracking-widest uppercase">Version 10.1</div>
+              <div className="text-xs font-semibold text-emerald-400/80 tracking-widest uppercase">Version 10.2</div>
             </div>
             <button 
               onClick={() => setIsExportModalOpen(true)}
@@ -579,7 +603,14 @@ export default function App() {
                 </button>
              )}
         </div>
-        <button tabIndex={-1} onClick={() => changeDate(1)} className="p-2 text-emerald-400 hover:bg-white/5 rounded-lg"><ChevronRight /></button>
+        <button 
+          tabIndex={-1} 
+          onClick={() => changeDate(1)} 
+          disabled={isToday}
+          className={`p-2 rounded-lg ${isToday ? 'text-gray-600 cursor-not-allowed opacity-50' : 'text-emerald-400 hover:bg-white/5'}`}
+        >
+          <ChevronRight />
+        </button>
       </div>
 
         {Object.keys(routineConfig).length > 0 && !activeRoutineId ? (
