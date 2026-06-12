@@ -22,9 +22,19 @@ export default function CalendarView({ initialDate, onSelectDate, onClose }: Pro
             const dateStr = key.replace('gym_log_', '');
             try {
                 const data = JSON.parse(localStorage.getItem(key) || '{}');
-                // Check if it has actual data (routineId, metrics, or exercises)
-                const hasData = Object.keys(data).some(k => k !== '_day_note_' && k !== 'routineId');
-                if (hasData || data.routineId) {
+                let dayHasData = false;
+                for (const k of Object.keys(data)) {
+                    if (['_day_note_', 'routineId'].includes(k)) continue;
+                    if (['calories', 'duration', 'avgHeartRate', 'maxHeartRate'].includes(k)) {
+                        if (data[k]) dayHasData = true;
+                    } else if (typeof data[k] === 'object') {
+                        const exData = data[k];
+                        if (Object.keys(exData).some(setKey => setKey !== 'note' && (exData[setKey].reps || exData[setKey].weight || exData[setKey].time || exData[setKey].done))) {
+                            dayHasData = true;
+                        }
+                    }
+                }
+                if (dayHasData) {
                     activeDays.add(dateStr);
                 }
             } catch (e) {

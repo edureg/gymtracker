@@ -41,7 +41,7 @@ export default function App() {
         if (!['routineId', '_day_note_', 'calories', 'duration', 'avgHeartRate', 'maxHeartRate'].includes(key)) {
            const exData = dayLog[key];
            for (const setKey of Object.keys(exData)) {
-              if (setKey !== 'note' && (exData[setKey].reps || exData[setKey].weight || exData[setKey].time)) {
+              if (setKey !== 'note' && (exData[setKey].reps || exData[setKey].weight || exData[setKey].time || exData[setKey].done)) {
                  currentLogHasData = true;
                  break;
               }
@@ -52,7 +52,7 @@ export default function App() {
 
   let currentDayRoutine = activeRoutineId ? routineConfig[activeRoutineId] : null;
 
-  if (!currentDayRoutine && currentLogHasData && currentView === 'workout') {
+  if (!currentDayRoutine && currentLogHasData) {
       activeRoutineId = "historic_imported";
       
       const historicExercises: Exercise[] = [];
@@ -405,7 +405,7 @@ export default function App() {
               <h1 className="text-3xl font-black tracking-tight bg-gradient-to-br from-white via-gray-200 to-gray-500 bg-clip-text text-transparent mb-1">
                 Gym Tracker
               </h1>
-              <div className="text-xs font-semibold text-emerald-400/80 tracking-widest uppercase">Version 10.2</div>
+              <div className="text-xs font-semibold text-emerald-400/80 tracking-widest uppercase">Version 10.3</div>
             </div>
             <button 
               onClick={() => setIsExportModalOpen(true)}
