@@ -8,6 +8,7 @@ import TimerPanel from './components/TimerPanel';
 import AddExerciseModal from './components/AddExerciseModal';
 import RoutineHistoryModal from './components/RoutineHistoryModal';
 import EditRoutineView from './components/EditRoutineView';
+import CalendarView from './components/CalendarView';
 
 export default function App() {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -16,7 +17,7 @@ export default function App() {
   const [isTimerOpen, setIsTimerOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [routineForHistory, setRoutineForHistory] = useState<Routine | null>(null);
-  const [currentView, setCurrentView] = useState<'home' | 'workout' | 'edit_routine'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'workout' | 'edit_routine' | 'calendar'>('home');
   const [editingRoutineId, setEditingRoutineId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -503,16 +504,22 @@ export default function App() {
 
           <div className="mt-12 text-center pb-8 border-t border-white/10 pt-8">
              <button
-                onClick={() => {
-                   setCurrentDate(new Date());
-                   setCurrentView('workout');
-                }}
-                className="text-gray-400 hover:text-white transition-colors flex items-center justify-center gap-2 mx-auto bg-black/30 py-3 px-6 rounded-2xl border border-white/5"
+                onClick={() => setCurrentView('calendar')}
+                className="text-gray-400 hover:text-white transition-colors flex items-center justify-center gap-2 mx-auto bg-black/30 py-3 px-6 rounded-2xl border border-white/5 cursor-pointer"
              >
                 <Calendar className="w-4 h-4"/> Ver Calendario / Días pasados
              </button>
           </div>
         </div>
+      ) : currentView === 'calendar' ? (
+          <CalendarView 
+              initialDate={currentDate}
+              onSelectDate={(date) => {
+                  setCurrentDate(date);
+                  setCurrentView('workout');
+              }}
+              onClose={() => setCurrentView('home')}
+          />
       ) : currentView === 'edit_routine' && editingRoutineId ? (
           <EditRoutineView 
               routine={routineConfig[editingRoutineId]}
