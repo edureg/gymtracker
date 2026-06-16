@@ -374,8 +374,26 @@ export default function App() {
   const todayDateObj = new Date();
   const todayLogState = getDayLog(todayDateObj);
   const todayRoutineId = todayLogState.routineId;
-  const todayRoutineObj = todayRoutineId ? routineConfig[todayRoutineId] : null;
+  const todayRoutineObjRaw = todayRoutineId ? routineConfig[todayRoutineId] : null;
   const todayHasFinishedMetrics = !!(todayLogState.calories || todayLogState.duration || todayLogState.avgHeartRate || todayLogState.maxHeartRate);
+
+  let todayHasExerciseData = false;
+  if (todayLogState) {
+    for (const key of Object.keys(todayLogState)) {
+      if (!['routineId', '_day_note_', 'calories', 'duration', 'avgHeartRate', 'maxHeartRate'].includes(key)) {
+         const exData = todayLogState[key];
+         for (const setKey of Object.keys(exData)) {
+            if (setKey !== 'note' && (exData[setKey].reps || exData[setKey].weight || exData[setKey].time || exData[setKey].done)) {
+               todayHasExerciseData = true;
+               break;
+            }
+         }
+      }
+      if (todayHasExerciseData) break;
+    }
+  }
+
+  const todayRoutineObj = (todayHasExerciseData || todayHasFinishedMetrics) ? todayRoutineObjRaw : null;
 
   const moveExercise = (exIndex: number, direction: number) => {
     if (!activeRoutineId || !currentDayRoutine) return;
@@ -520,7 +538,7 @@ export default function App() {
               <h1 className="text-3xl font-black tracking-tight bg-gradient-to-br from-white via-gray-200 to-gray-500 bg-clip-text text-transparent mb-1">
                 Gym Tracker
               </h1>
-              <div className="text-xs font-semibold text-emerald-400/80 tracking-widest uppercase">Version 10.7</div>
+              <div className="text-xs font-semibold text-emerald-400/80 tracking-widest uppercase">Version 10.10</div>
             </div>
             <button 
               onClick={openExportModal}
@@ -915,7 +933,7 @@ export default function App() {
             >
               <X className="w-5 h-5" />
             </button>
-            <h2 className="text-xl font-bold mb-4">Exportar Datos</h2>
+            <h2 className="text-xl font-bold mb-4">Exportar / Restaurar</h2>
             <p className="text-sm text-gray-400 mb-6">
               Seleccioná en qué formato querés guardar tu respaldo. Podés usar cualquiera de los dos para luego importarlos.
             </p>
@@ -940,6 +958,22 @@ export default function App() {
               >
                 Generar Ambos
               </button>
+              
+              <div className="pt-4 mt-4 border-t border-white/10">
+                 <h3 className="text-sm font-semibold text-gray-300 mb-3 text-center">Restaurar Datos (Importar)</h3>
+                 <label className="w-full py-3 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-xl hover:bg-blue-500/30 transition flex flex-col items-center justify-center cursor-pointer">
+                    <span className="font-semibold flex items-center gap-2">
+                       <Upload className="w-5 h-5" /> Importar Backup
+                    </span>
+                    <span className="text-xs text-blue-400/70 mt-1">Soporta .json, .csv o .txt</span>
+                    <input 
+                      type="file" 
+                      accept=".csv,.json,.txt"
+                      className="hidden"
+                      onChange={handleImport}
+                    />
+                 </label>
+              </div>
             </div>
           </div>
         </div>

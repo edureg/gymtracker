@@ -59,7 +59,7 @@ export function saveDayLog(date: Date, log: DayLog) {
   localStorage.setItem(key, JSON.stringify(log));
 }
 
-export function getLastSessionData(exerciseId: string, currentDate: Date) {
+export function getLastSessionData(exerciseId: string, exerciseName: string, currentDate: Date) {
     const today = new Date(currentDate);
     today.setHours(0, 0, 0, 0);
 
@@ -76,13 +76,41 @@ export function getLastSessionData(exerciseId: string, currentDate: Date) {
         .filter(h => h.date < today)
         .sort((a, b) => b.date.getTime() - a.date.getTime());
 
+    const routineConfig = JSON.parse(localStorage.getItem('gym_custom_routine') || '{}');
+    const idToNameMap: Record<string, string> = {};
+    Object.values(routineConfig).forEach((r: any) => {
+        if (r.exercises) {
+            r.exercises.forEach((ex: any) => {
+                idToNameMap[ex.id] = ex.name;
+            });
+        }
+    });
+    Object.values(DEFAULT_ROUTINE).forEach((r: any) => {
+        if (r.exercises) {
+            r.exercises.forEach((ex: any) => {
+                idToNameMap[ex.id] = ex.name;
+            });
+        }
+    });
+
+    const possibleIds = Object.keys(idToNameMap).filter(id => idToNameMap[id] === exerciseName);
+    if (!possibleIds.includes(exerciseId)) possibleIds.push(exerciseId);
+
     for (const session of pastSessions) {
         const data = JSON.parse(localStorage.getItem(session.key) || '{}');
-        if (data[exerciseId]) {
-            const exData = data[exerciseId];
-            const hasContent = Object.keys(exData).some(k => k !== 'note' && (exData[k].weight || exData[k].reps || exData[k].time));
+        
+        let foundData = null;
+        for (const pid of possibleIds) {
+            if (data[pid]) {
+                foundData = data[pid];
+                break;
+            }
+        }
+
+        if (foundData) {
+            const hasContent = Object.keys(foundData).some(k => k !== 'note' && (foundData[k].weight || foundData[k].reps || foundData[k].time));
             if (hasContent) {
-                return { date: session.dateStr, ...exData };
+                return { date: session.dateStr, ...foundData };
             }
         }
     }

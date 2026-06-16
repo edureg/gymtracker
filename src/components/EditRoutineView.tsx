@@ -24,12 +24,7 @@ export default function EditRoutineView({ routine, exerciseBank, onUpdate, onClo
   };
 
   const handleAddExercise = (newEx: Exercise) => {
-    // If it's a custom exercise that doesn't have an ID yet, ensure it gets a unique one
-    const exToAdd = {
-        ...newEx,
-        id: newEx.id.startsWith('custom_') ? 'ex_' + Date.now() + Math.random().toString(36).substr(2, 9) : newEx.id
-    };
-    onUpdate({ ...routine, exercises: [...routine.exercises, exToAdd] });
+    onUpdate({ ...routine, exercises: [...routine.exercises, newEx] });
     setIsAddModalOpen(false);
   };
 

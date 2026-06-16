@@ -27,7 +27,7 @@ export default function ExerciseCard({
   onMoveUp, onMoveDown, canMoveUp, canMoveDown, onDeactivate, onChangeSets, onUpdateExerciseNotes
 }: Props) {
   
-  const lastSession = getLastSessionData(exercise.id, currentDate);
+  const lastSession = getLastSessionData(exercise.id, exercise.name, currentDate);
   const sessionNote = dayLog.note || '';
 
   const renderSets = () => {
