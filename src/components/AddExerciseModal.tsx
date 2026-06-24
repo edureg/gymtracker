@@ -28,7 +28,7 @@ export default function AddExerciseModal({ onClose, onAdd, exerciseBank }: Props
     if (ex) {
       setSelectedId(ex.id);
       setName(ex.name);
-      setNotes(ex.notes || '');
+      setNotes(''); // Las observaciones son por rutina, no por ejercicio global
       setSets(ex.sets);
       setHasTime(ex.hasTime || false);
     }

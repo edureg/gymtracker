@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ChevronLeft, Plus, Trash2, PenLine, GripVertical, CheckCircle, Save, Settings } from 'lucide-react';
 import { Routine, Exercise } from '../types';
 import AddExerciseModal from './AddExerciseModal';
-import { motion, Reorder } from 'motion/react';
+import { motion, Reorder, useDragControls } from 'motion/react';
 
 interface Props {
   routine: Routine;
@@ -10,6 +10,48 @@ interface Props {
   onUpdate: (r: Routine) => void;
   onClose: () => void;
   onDelete: () => void;
+}
+
+function SortableExerciseItem({ ex, onRemove, onUpdate }: { ex: Exercise, onRemove: (id: string) => void, onUpdate: (id: string, updates: Partial<Exercise>) => void }) {
+    const controls = useDragControls();
+
+    return (
+        <Reorder.Item value={ex} dragListener={false} dragControls={controls}>
+            <div className="bg-slate-900/60 border border-white/10 p-4 rounded-xl flex gap-3 group">
+                <div 
+                    onPointerDown={(e) => controls.start(e)}
+                    className="flex flex-col items-center justify-center cursor-grab active:cursor-grabbing opacity-50 hover:opacity-100 p-2 touch-none"
+                >
+                    <GripVertical className="w-5 h-5 text-gray-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-start mb-2">
+                        <h3 className="text-white font-bold truncate pr-2">{ex.name}</h3>
+                        <button onClick={() => onRemove(ex.id)} className="text-red-400/50 hover:text-red-400">
+                            <Trash2 className="w-4 h-4" />
+                        </button>
+                    </div>
+                    
+                    <input 
+                        type="text" 
+                        value={ex.notes || ''}
+                        onChange={(e) => onUpdate(ex.id, { notes: e.target.value })}
+                        placeholder="Notas del ejercicio (ej. en banco scott)..."
+                        className="w-full bg-black/40 border border-white/10 rounded-lg py-1.5 px-3 mb-3 text-sm text-gray-300 focus:outline-none focus:border-emerald-400/50"
+                    />
+
+                    <div className="flex items-center gap-3">
+                        <div className="text-xs text-gray-500 uppercase font-semibold">Series</div>
+                        <div className="flex items-center gap-2 bg-black/50 rounded-lg p-1">
+                            <button onClick={() => onUpdate(ex.id, { sets: Math.max(1, ex.sets - 1) })} className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-white bg-white/5 rounded-md">-</button>
+                            <span className="w-6 text-center text-emerald-400 font-bold">{ex.sets}</span>
+                            <button onClick={() => onUpdate(ex.id, { sets: ex.sets + 1 })} className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-white bg-white/5 rounded-md">+</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </Reorder.Item>
+    );
 }
 
 export default function EditRoutineView({ routine, exerciseBank, onUpdate, onClose, onDelete }: Props) {
@@ -84,38 +126,12 @@ export default function EditRoutineView({ routine, exerciseBank, onUpdate, onClo
 
       <Reorder.Group axis="y" values={activeExercises} onReorder={handleReorder} className="space-y-4">
           {activeExercises.map((ex) => (
-              <Reorder.Item key={ex.id} value={ex}>
-                  <div className="bg-slate-900/60 border border-white/10 p-4 rounded-xl flex gap-3 group">
-                      <div className="flex flex-col items-center justify-center cursor-grab active:cursor-grabbing opacity-50 hover:opacity-100">
-                          <GripVertical className="w-5 h-5 text-gray-400" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                          <div className="flex justify-between items-start mb-2">
-                              <h3 className="text-white font-bold truncate pr-2">{ex.name}</h3>
-                              <button onClick={() => handleRemoveExercise(ex.id)} className="text-red-400/50 hover:text-red-400">
-                                  <Trash2 className="w-4 h-4" />
-                              </button>
-                          </div>
-                          
-                          <input 
-                              type="text" 
-                              value={ex.notes || ''}
-                              onChange={(e) => handleUpdateExercise(ex.id, { notes: e.target.value })}
-                              placeholder="Notas del ejercicio (ej. en banco scott)..."
-                              className="w-full bg-black/40 border border-white/10 rounded-lg py-1.5 px-3 mb-3 text-sm text-gray-300 focus:outline-none focus:border-emerald-400/50"
-                          />
-
-                          <div className="flex items-center gap-3">
-                              <div className="text-xs text-gray-500 uppercase font-semibold">Series</div>
-                              <div className="flex items-center gap-2 bg-black/50 rounded-lg p-1">
-                                  <button onClick={() => handleUpdateExercise(ex.id, { sets: Math.max(1, ex.sets - 1) })} className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-white bg-white/5 rounded-md">-</button>
-                                  <span className="w-6 text-center text-emerald-400 font-bold">{ex.sets}</span>
-                                  <button onClick={() => handleUpdateExercise(ex.id, { sets: ex.sets + 1 })} className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-white bg-white/5 rounded-md">+</button>
-                              </div>
-                          </div>
-                      </div>
-                  </div>
-              </Reorder.Item>
+              <SortableExerciseItem 
+                  key={ex.id} 
+                  ex={ex} 
+                  onRemove={handleRemoveExercise} 
+                  onUpdate={handleUpdateExercise} 
+              />
           ))}
       </Reorder.Group>
 
