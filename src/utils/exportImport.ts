@@ -1,16 +1,20 @@
 import { RoutineConfig } from '../types';
 import { DEFAULT_ROUTINE } from '../constants';
 
-export function exportCSV(currentRoutine: RoutineConfig) {
+export function exportCSV(currentRoutine: RoutineConfig, startStr?: string, endStr?: string) {
     let csvRows: string[] = [];
     const header = "Fecha,Ejercicio,Serie,Repeticiones,Peso (kg),Tiempo (s),Notas,Nota General,Calorías,Duración,FC Promedio,FC Máxima";
 
-    const keys = Object.keys(localStorage)
+    let keys = Object.keys(localStorage)
         .filter(k => k.startsWith('gym_log_'))
         .sort();
 
     keys.forEach(key => {
         const dateStr = key.replace('gym_log_', '');
+
+        if (startStr && dateStr < startStr) return;
+        if (endStr && dateStr > endStr) return;
+
         const data = JSON.parse(localStorage.getItem(key) || '{}');
 
         const dayNoteRaw = data._day_note_ || '';
@@ -72,9 +76,9 @@ export function exportCSV(currentRoutine: RoutineConfig) {
     document.body.removeChild(link);
 }
 
-export function exportJSON(currentRoutine: RoutineConfig) {
+export function exportJSON(currentRoutine: RoutineConfig, startStr?: string, endStr?: string) {
     const dataToExport: any = {
-        version: "v9.10",
+        version: "v11.0",
         routine: currentRoutine,
         logs: {}
     };
@@ -82,6 +86,10 @@ export function exportJSON(currentRoutine: RoutineConfig) {
     const keys = Object.keys(localStorage).filter(k => k.startsWith('gym_log_'));
     keys.forEach(key => {
         const dateStr = key.replace('gym_log_', '');
+        
+        if (startStr && dateStr < startStr) return;
+        if (endStr && dateStr > endStr) return;
+
         dataToExport.logs[dateStr] = JSON.parse(localStorage.getItem(key) || '{}');
     });
 

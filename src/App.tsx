@@ -16,6 +16,16 @@ export default function App() {
   const [dayLog, setDayLog] = useState<DayLog>({});
   const [isTimerOpen, setIsTimerOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [exportRangeType, setExportRangeType] = useState<'30_days' | 'custom' | 'all'>('30_days');
+  const [exportStartDate, setExportStartDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return d.toISOString().split('T')[0];
+  });
+  const [exportEndDate, setExportEndDate] = useState(() => {
+    const d = new Date();
+    return d.toISOString().split('T')[0];
+  });
   const [routineForHistory, setRoutineForHistory] = useState<Routine | null>(null);
   const [currentView, _setCurrentView] = useState<'home' | 'workout' | 'edit_routine' | 'calendar'>('home');
   const [editingRoutineId, setEditingRoutineId] = useState<string | null>(null);
@@ -252,11 +262,23 @@ export default function App() {
   };
 
   const executeExport = (type: 'csv' | 'json' | 'both') => {
+    let startStr: string | undefined;
+    let endStr: string | undefined;
+
+    if (exportRangeType === '30_days') {
+      const d = new Date();
+      d.setDate(d.getDate() - 30);
+      startStr = d.toISOString().split('T')[0];
+    } else if (exportRangeType === 'custom') {
+      startStr = exportStartDate;
+      endStr = exportEndDate;
+    }
+
     if (type === 'csv' || type === 'both') {
-      exportCSV(routineConfig);
+      exportCSV(routineConfig, startStr, endStr);
     }
     if (type === 'json' || type === 'both') {
-      exportJSON(routineConfig);
+      exportJSON(routineConfig, startStr, endStr);
     }
     closeExportModal();
   };
@@ -538,7 +560,7 @@ export default function App() {
               <h1 className="text-3xl font-black tracking-tight bg-gradient-to-br from-white via-gray-200 to-gray-500 bg-clip-text text-transparent mb-1">
                 Gym Tracker
               </h1>
-              <div className="text-xs font-semibold text-emerald-400/80 tracking-widest uppercase">Version 10.10</div>
+              <div className="text-xs font-semibold text-emerald-400/80 tracking-widest uppercase">Version 11.0</div>
             </div>
             <button 
               onClick={openExportModal}
@@ -934,9 +956,40 @@ export default function App() {
               <X className="w-5 h-5" />
             </button>
             <h2 className="text-xl font-bold mb-4">Exportar / Restaurar</h2>
-            <p className="text-sm text-gray-400 mb-6">
-              Seleccioná en qué formato querés guardar tu respaldo. Podés usar cualquiera de los dos para luego importarlos.
+            <p className="text-sm text-gray-400 mb-4">
+              Seleccioná qué datos y en qué formato querés guardar tu respaldo.
             </p>
+
+            <div className="mb-6 space-y-3">
+              <div className="flex flex-col gap-2">
+                <label className="flex items-center gap-2 text-sm text-gray-300">
+                  <input type="radio" name="exportRange" checked={exportRangeType === '30_days'} onChange={() => setExportRangeType('30_days')} className="accent-emerald-400" />
+                  Últimos 30 días
+                </label>
+                <label className="flex items-center gap-2 text-sm text-gray-300">
+                  <input type="radio" name="exportRange" checked={exportRangeType === 'all'} onChange={() => setExportRangeType('all')} className="accent-emerald-400" />
+                  Todos los registros
+                </label>
+                <label className="flex items-center gap-2 text-sm text-gray-300">
+                  <input type="radio" name="exportRange" checked={exportRangeType === 'custom'} onChange={() => setExportRangeType('custom')} className="accent-emerald-400" />
+                  Rango personalizado
+                </label>
+              </div>
+
+              {exportRangeType === 'custom' && (
+                <div className="flex gap-3 mt-2">
+                  <div className="flex-1">
+                    <label className="block text-xs text-gray-500 mb-1">Desde</label>
+                    <input type="date" value={exportStartDate} onChange={(e) => setExportStartDate(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-lg py-1.5 px-2 text-sm text-white focus:outline-none focus:border-emerald-400/50" />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-xs text-gray-500 mb-1">Hasta</label>
+                    <input type="date" value={exportEndDate} onChange={(e) => setExportEndDate(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-lg py-1.5 px-2 text-sm text-white focus:outline-none focus:border-emerald-400/50" />
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="space-y-3">
               <button 
                 onClick={() => executeExport('csv')}
