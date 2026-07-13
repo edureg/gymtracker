@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, PenLine, Plus, Unlock, Lock, Download, Upload, Timer as TimerIcon, History, X, Home, Calendar, CheckCircle, Settings } from 'lucide-react';
 import { RoutineConfig, DayLog, Exercise, Routine } from './types';
 import { loadRoutineConfig, saveRoutineConfig, getDayLog, saveDayLog, getLastDayMetrics } from './utils/storage';
-import { exportCSV, exportJSON, importFile } from './utils/exportImport';
+import { exportCSV, exportJSON, exportPDF, importFile } from './utils/exportImport';
 import ExerciseCard from './components/ExerciseCard';
 import TimerPanel from './components/TimerPanel';
 import AddExerciseModal from './components/AddExerciseModal';
@@ -261,7 +261,7 @@ export default function App() {
     openExportModal();
   };
 
-  const executeExport = (type: 'csv' | 'json' | 'both') => {
+  const executeExport = (type: 'csv' | 'json' | 'pdf' | 'all') => {
     let startStr: string | undefined;
     let endStr: string | undefined;
 
@@ -274,11 +274,14 @@ export default function App() {
       endStr = exportEndDate;
     }
 
-    if (type === 'csv' || type === 'both') {
+    if (type === 'csv' || type === 'all') {
       exportCSV(routineConfig, startStr, endStr);
     }
-    if (type === 'json' || type === 'both') {
+    if (type === 'json' || type === 'all') {
       exportJSON(routineConfig, startStr, endStr);
+    }
+    if (type === 'pdf' || type === 'all') {
+      exportPDF(routineConfig, startStr, endStr);
     }
     closeExportModal();
   };
@@ -992,6 +995,13 @@ export default function App() {
 
             <div className="space-y-3">
               <button 
+                onClick={() => executeExport('pdf')}
+                className="w-full py-3 bg-red-500/20 text-red-400 border border-red-500/30 rounded-xl hover:bg-red-500/30 transition flex flex-col items-center justify-center"
+              >
+                <span className="font-semibold flex items-center gap-2">Reporte en PDF</span>
+                <span className="text-xs text-red-400/70 mt-1">Ideal para leer o imprimir</span>
+              </button>
+              <button 
                 onClick={() => executeExport('csv')}
                 className="w-full py-3 bg-black/40 border border-white/20 rounded-xl hover:bg-white/5 transition flex flex-col items-center justify-center"
               >
@@ -1003,13 +1013,13 @@ export default function App() {
                 className="w-full py-3 bg-black/40 border border-white/20 rounded-xl hover:bg-white/5 transition flex flex-col items-center justify-center"
               >
                 <span className="font-semibold text-white">Solo JSON</span>
-                <span className="text-xs text-gray-400 mt-1">Datos estructurados puros</span>
+                <span className="text-xs text-gray-400 mt-1">Para restaurar en Gym Tracker</span>
               </button>
               <button 
-                onClick={() => executeExport('both')}
+                onClick={() => executeExport('all')}
                 className="w-full py-3 bg-emerald-400 text-black font-semibold rounded-xl shadow-[0_0_10px_rgba(52,211,153,0.4)] transition"
               >
-                Generar Ambos
+                Generar Todos
               </button>
               
               <div className="pt-4 mt-4 border-t border-white/10">

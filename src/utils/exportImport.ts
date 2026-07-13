@@ -1,5 +1,83 @@
 import { RoutineConfig } from '../types';
 import { DEFAULT_ROUTINE } from '../constants';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+
+export function exportPDF(currentRoutine: RoutineConfig, startStr?: string, endStr?: string) {
+    const doc = new jsPDF();
+    
+    doc.setFontSize(18);
+    doc.text("Reporte de Entrenamientos", 14, 22);
+    
+    if (startStr && endStr) {
+        doc.setFontSize(12);
+        doc.text(`Desde: ${startStr} - Hasta: ${endStr}`, 14, 30);
+    } else if (startStr) {
+        doc.setFontSize(12);
+        doc.text(`Desde: ${startStr}`, 14, 30);
+    }
+    
+    let keys = Object.keys(localStorage)
+        .filter(k => k.startsWith('gym_log_'))
+        .sort();
+
+    const tableData: any[] = [];
+
+    keys.forEach(key => {
+        const dateStr = key.replace('gym_log_', '');
+
+        if (startStr && dateStr < startStr) return;
+        if (endStr && dateStr > endStr) return;
+
+        const data = JSON.parse(localStorage.getItem(key) || '{}');
+        
+        Object.keys(data).forEach(exId => {
+            if (exId === '_day_note_' || exId === 'calories' || exId === 'duration' || exId === 'avgHeartRate' || exId === 'maxHeartRate') return;
+            const sets = data[exId];
+            let exName = exId;
+
+            Object.values(currentRoutine).forEach(routine => {
+                const foundInCurrent = routine.exercises?.find(e => e.id === exId);
+                if (foundInCurrent) exName = foundInCurrent.name;
+            });
+
+            if (exName === exId) {
+                Object.values(DEFAULT_ROUTINE).forEach(routine => {
+                    const foundInOriginal = routine.exercises?.find(e => e.id === exId);
+                    if (foundInOriginal) exName = foundInOriginal.name;
+                });
+            }
+
+            Object.keys(sets).forEach(setIdx => {
+                if (setIdx === 'note' || setIdx === 'done') return;
+                const s = sets[setIdx];
+                if (s.reps || s.weight || s.time || s.done) {
+                    tableData.push([
+                        dateStr,
+                        exName,
+                        setIdx,
+                        s.reps || '-',
+                        s.weight ? `${s.weight} kg` : '-',
+                        s.time ? `${s.time} s` : '-'
+                    ]);
+                }
+            });
+        });
+    });
+
+    if (tableData.length === 0) {
+        alert("No hay datos guardados para exportar en este rango.");
+        return;
+    }
+
+    autoTable(doc, {
+        startY: 35,
+        head: [['Fecha', 'Ejercicio', 'Serie', 'Reps', 'Peso', 'Tiempo']],
+        body: tableData,
+    });
+
+    doc.save(`gym_export_${new Date().toISOString().split('T')[0]}.pdf`);
+}
 
 export function exportCSV(currentRoutine: RoutineConfig, startStr?: string, endStr?: string) {
     let csvRows: string[] = [];
