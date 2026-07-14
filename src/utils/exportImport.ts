@@ -30,6 +30,7 @@ export function exportPDF(currentRoutine: RoutineConfig, startStr?: string, endS
         if (endStr && dateStr > endStr) return;
 
         const data = JSON.parse(localStorage.getItem(key) || '{}');
+        const dayNoteStr = data._day_note_ || '';
         
         Object.keys(data).forEach(exId => {
             if (exId === '_day_note_' || exId === 'calories' || exId === 'duration' || exId === 'avgHeartRate' || exId === 'maxHeartRate') return;
@@ -51,6 +52,13 @@ export function exportPDF(currentRoutine: RoutineConfig, startStr?: string, endS
             Object.keys(sets).forEach(setIdx => {
                 if (setIdx === 'note' || setIdx === 'done') return;
                 const s = sets[setIdx];
+                const noteStr = sets.note || '';
+                
+                let allNotes = noteStr;
+                if (dayNoteStr) {
+                    allNotes = allNotes ? `${allNotes}\n(Día: ${dayNoteStr})` : `(Día: ${dayNoteStr})`;
+                }
+
                 if (s.reps || s.weight || s.time || s.done) {
                     tableData.push([
                         dateStr,
@@ -58,7 +66,8 @@ export function exportPDF(currentRoutine: RoutineConfig, startStr?: string, endS
                         setIdx,
                         s.reps || '-',
                         s.weight ? `${s.weight} kg` : '-',
-                        s.time ? `${s.time} s` : '-'
+                        s.time ? `${s.time} s` : '-',
+                        allNotes
                     ]);
                 }
             });
@@ -72,7 +81,7 @@ export function exportPDF(currentRoutine: RoutineConfig, startStr?: string, endS
 
     autoTable(doc, {
         startY: 35,
-        head: [['Fecha', 'Ejercicio', 'Serie', 'Reps', 'Peso', 'Tiempo']],
+        head: [['Fecha', 'Ejercicio', 'Serie', 'Reps', 'Peso', 'Tiempo', 'Notas']],
         body: tableData,
     });
 
@@ -156,7 +165,7 @@ export function exportCSV(currentRoutine: RoutineConfig, startStr?: string, endS
 
 export function exportJSON(currentRoutine: RoutineConfig, startStr?: string, endStr?: string) {
     const dataToExport: any = {
-        version: "v11.0",
+        version: "v11.1",
         routine: currentRoutine,
         logs: {}
     };
