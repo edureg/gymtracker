@@ -45,23 +45,51 @@ export function exportRoutinesPDF(currentRoutine: RoutineConfig) {
 
 export function exportPDF(currentRoutine: RoutineConfig, startStr?: string, endStr?: string) {
     const doc = new jsPDF();
-    
+    let currentY = 20;
+    const pageHeight = doc.internal.pageSize.height;
+    const margin = 14;
+    const maxWidth = doc.internal.pageSize.width - margin * 2;
+
+    const checkPageBreak = (heightNeeded: number) => {
+        if (currentY + heightNeeded > pageHeight - margin) {
+            doc.addPage();
+            currentY = margin + 10;
+        }
+    };
+
+    const printText = (text: string, fontSize: number, isBold: boolean = false, indent: number = 0, color: [number, number, number] = [0, 0, 0]) => {
+        doc.setFontSize(fontSize);
+        doc.setFont("helvetica", isBold ? "bold" : "normal");
+        doc.setTextColor(color[0], color[1], color[2]);
+        
+        const lines = doc.splitTextToSize(text, maxWidth - indent);
+        const lineHeight = fontSize * 0.4;
+        
+        lines.forEach((line: string) => {
+            checkPageBreak(lineHeight);
+            doc.text(line, margin + indent, currentY);
+            currentY += lineHeight + 2;
+        });
+        currentY += 2;
+    };
+
     doc.setFontSize(18);
-    doc.text("Reporte de Entrenamientos", 14, 22);
+    doc.setFont("helvetica", "bold");
+    doc.text("Reporte de Entrenamientos", margin, currentY);
+    currentY += 10;
     
     if (startStr && endStr) {
-        doc.setFontSize(12);
-        doc.text(`Desde: ${startStr} - Hasta: ${endStr}`, 14, 30);
+        printText(`Desde: ${startStr} - Hasta: ${endStr}`, 12, false, 0, [100, 100, 100]);
     } else if (startStr) {
-        doc.setFontSize(12);
-        doc.text(`Desde: ${startStr}`, 14, 30);
+        printText(`Desde: ${startStr}`, 12, false, 0, [100, 100, 100]);
     }
+    currentY += 5;
     
     let keys = Object.keys(localStorage)
         .filter(k => k.startsWith('gym_log_'))
         .sort();
 
-    const tableData: any[] = [];
+    let hasData = false;
 
     keys.forEach(key => {
         const dateStr = key.replace('gym_log_', '');
@@ -70,10 +98,27 @@ export function exportPDF(currentRoutine: RoutineConfig, startStr?: string, endS
         if (endStr && dateStr > endStr) return;
 
         const data = JSON.parse(localStorage.getItem(key) || '{}');
-        const dayNoteStr = data._day_note_ || '';
+        const exKeys = Object.keys(data).filter(k => !['_day_note_', 'calories', 'duration', 'avgHeartRate', 'maxHeartRate', 'routineId'].includes(k));
         
-        Object.keys(data).forEach(exId => {
-            if (exId === '_day_note_' || exId === 'calories' || exId === 'duration' || exId === 'avgHeartRate' || exId === 'maxHeartRate') return;
+        if (exKeys.length === 0 && !data._day_note_) return;
+        
+        hasData = true;
+
+        let routineName = "Libre";
+        if (data.routineId && currentRoutine[data.routineId]) {
+            routineName = currentRoutine[data.routineId].title;
+        }
+
+        checkPageBreak(15);
+        currentY += 5;
+        // Day Header
+        printText(`📅 Fecha: ${dateStr} - Rutina: ${routineName}`, 14, true, 0, [30, 64, 175]);
+        
+        if (data._day_note_) {
+            printText(`📝 Comentario del día: ${data._day_note_}`, 11, false, 5, [80, 80, 80]);
+        }
+        
+        exKeys.forEach(exId => {
             const sets = data[exId];
             let exName = exId;
 
@@ -81,7 +126,6 @@ export function exportPDF(currentRoutine: RoutineConfig, startStr?: string, endS
                 const foundInCurrent = routine.exercises?.find(e => e.id === exId);
                 if (foundInCurrent) exName = foundInCurrent.name;
             });
-
             if (exName === exId) {
                 Object.values(DEFAULT_ROUTINE).forEach(routine => {
                     const foundInOriginal = routine.exercises?.find(e => e.id === exId);
@@ -89,41 +133,37 @@ export function exportPDF(currentRoutine: RoutineConfig, startStr?: string, endS
                 });
             }
 
-            Object.keys(sets).forEach(setIdx => {
-                if (setIdx === 'note' || setIdx === 'done') return;
-                const s = sets[setIdx];
-                const noteStr = sets.note || '';
-                
-                let allNotes = noteStr;
-                if (dayNoteStr) {
-                    allNotes = allNotes ? `${allNotes}\n(Día: ${dayNoteStr})` : `(Día: ${dayNoteStr})`;
-                }
+            // check if exercise actually has sets done
+            const setKeys = Object.keys(sets).filter(k => k !== 'note' && k !== 'done' && (sets[k].reps || sets[k].weight || sets[k].time || sets[k].done));
+            if (setKeys.length === 0 && !sets.note) return;
 
-                if (s.reps || s.weight || s.time || s.done) {
-                    tableData.push([
-                        dateStr,
-                        exName,
-                        setIdx,
-                        s.reps || '-',
-                        s.weight ? `${s.weight} kg` : '-',
-                        s.time ? `${s.time} s` : '-',
-                        allNotes
-                    ]);
-                }
+            currentY += 3;
+            printText(`🏋️ Ejercicio: ${exName}`, 12, true, 5, [40, 40, 40]);
+            
+            if (sets.note) {
+                printText(`💡 Nota: ${sets.note}`, 11, false, 10, [100, 100, 100]);
+            }
+            
+            setKeys.forEach(setIdx => {
+                const s = sets[setIdx];
+                let setDetails = `* Serie ${setIdx}: `;
+                const parts = [];
+                if (s.reps) parts.push(`${s.reps} reps`);
+                if (s.weight) parts.push(`${s.weight} kg`);
+                if (s.time) parts.push(`${s.time} seg`);
+                if (parts.length === 0 && s.done) parts.push(`Hecho`);
+                
+                setDetails += parts.join(' - ');
+                printText(setDetails, 11, false, 10, [60, 60, 60]);
             });
         });
+        currentY += 5;
     });
 
-    if (tableData.length === 0) {
+    if (!hasData) {
         alert("No hay datos guardados para exportar en este rango.");
         return;
     }
-
-    autoTable(doc, {
-        startY: 35,
-        head: [['Fecha', 'Ejercicio', 'Serie', 'Reps', 'Peso', 'Tiempo', 'Notas']],
-        body: tableData,
-    });
 
     doc.save(`gym_export_${new Date().toISOString().split('T')[0]}.pdf`);
 }
@@ -151,8 +191,10 @@ export function exportCSV(currentRoutine: RoutineConfig, startStr?: string, endS
         const avgHeartRate = data.avgHeartRate || '';
         const maxHeartRate = data.maxHeartRate || '';
 
+        let isFirstRowOfDay = true;
+
         Object.keys(data).forEach(exId => {
-            if (exId === '_day_note_' || exId === 'calories' || exId === 'duration' || exId === 'avgHeartRate' || exId === 'maxHeartRate') return;
+            if (exId === '_day_note_' || exId === 'calories' || exId === 'duration' || exId === 'avgHeartRate' || exId === 'maxHeartRate' || exId === 'routineId') return;
             const sets = data[exId];
             let exName = exId;
 
@@ -169,12 +211,24 @@ export function exportCSV(currentRoutine: RoutineConfig, startStr?: string, endS
                 });
             }
 
+            let isFirstRowOfExercise = true;
+
             Object.keys(sets).forEach(setIdx => {
                 if (setIdx === 'note' || setIdx === 'done') return;
                 const s = sets[setIdx];
                 const noteStr = sets.note ? sets.note.replace(/"/g, '""') : '';
                 if (s.reps || s.weight || s.time || s.done) {
-                    csvRows.push(`${dateStr},"${exName}",${setIdx},${s.reps || 0},${s.weight || 0},${s.time || 0},"${noteStr}","${dayNoteStr}","${calories}","${duration}","${avgHeartRate}","${maxHeartRate}"`);
+                    const outDayNote = isFirstRowOfDay ? dayNoteStr : '';
+                    const outExNote = isFirstRowOfExercise ? noteStr : '';
+                    const outCal = isFirstRowOfDay ? calories : '';
+                    const outDur = isFirstRowOfDay ? duration : '';
+                    const outAvg = isFirstRowOfDay ? avgHeartRate : '';
+                    const outMax = isFirstRowOfDay ? maxHeartRate : '';
+
+                    csvRows.push(`${dateStr},"${exName}",${setIdx},${s.reps || 0},${s.weight || 0},${s.time || 0},"${outExNote}","${outDayNote}","${outCal}","${outDur}","${outAvg}","${outMax}"`);
+                    
+                    isFirstRowOfDay = false;
+                    isFirstRowOfExercise = false;
                 }
             });
         });
@@ -205,7 +259,7 @@ export function exportCSV(currentRoutine: RoutineConfig, startStr?: string, endS
 
 export function exportJSON(currentRoutine: RoutineConfig, startStr?: string, endStr?: string) {
     const dataToExport: any = {
-        version: "v11.4",
+        version: "v11.5",
         routine: currentRoutine,
         logs: {}
     };
