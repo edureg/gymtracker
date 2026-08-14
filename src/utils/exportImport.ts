@@ -45,50 +45,23 @@ export function exportRoutinesPDF(currentRoutine: RoutineConfig) {
 
 export function exportPDF(currentRoutine: RoutineConfig, startStr?: string, endStr?: string) {
     const doc = new jsPDF();
-    let currentY = 20;
-    const pageHeight = doc.internal.pageSize.height;
-    const margin = 14;
-    const maxWidth = doc.internal.pageSize.width - margin * 2;
-
-    const checkPageBreak = (heightNeeded: number) => {
-        if (currentY + heightNeeded > pageHeight - margin) {
-            doc.addPage();
-            currentY = margin + 10;
-        }
-    };
-
-    const printText = (text: string, fontSize: number, isBold: boolean = false, indent: number = 0, color: [number, number, number] = [0, 0, 0]) => {
-        doc.setFontSize(fontSize);
-        doc.setFont("helvetica", isBold ? "bold" : "normal");
-        doc.setTextColor(color[0], color[1], color[2]);
-        
-        const lines = doc.splitTextToSize(text, maxWidth - indent);
-        const lineHeight = fontSize * 0.4;
-        
-        lines.forEach((line: string) => {
-            checkPageBreak(lineHeight);
-            doc.text(line, margin + indent, currentY);
-            currentY += lineHeight + 2;
-        });
-        currentY += 2;
-    };
-
+    
     doc.setFontSize(18);
-    doc.setFont("helvetica", "bold");
-    doc.text("Reporte de Entrenamientos", margin, currentY);
-    currentY += 10;
+    doc.text("Reporte de Entrenamientos", 14, 22);
     
     if (startStr && endStr) {
-        printText(`Desde: ${startStr} - Hasta: ${endStr}`, 12, false, 0, [100, 100, 100]);
+        doc.setFontSize(12);
+        doc.text(`Desde: ${startStr} - Hasta: ${endStr}`, 14, 30);
     } else if (startStr) {
-        printText(`Desde: ${startStr}`, 12, false, 0, [100, 100, 100]);
+        doc.setFontSize(12);
+        doc.text(`Desde: ${startStr}`, 14, 30);
     }
-    currentY += 5;
     
     let keys = Object.keys(localStorage)
         .filter(k => k.startsWith('gym_log_'))
         .sort();
 
+    const tableData: any[] = [];
     let hasData = false;
 
     keys.forEach(key => {
@@ -101,7 +74,6 @@ export function exportPDF(currentRoutine: RoutineConfig, startStr?: string, endS
         const exKeys = Object.keys(data).filter(k => !['_day_note_', 'calories', 'duration', 'avgHeartRate', 'maxHeartRate', 'routineId'].includes(k));
         
         if (exKeys.length === 0 && !data._day_note_) return;
-        
         hasData = true;
 
         let routineName = "Libre";
@@ -109,15 +81,26 @@ export function exportPDF(currentRoutine: RoutineConfig, startStr?: string, endS
             routineName = currentRoutine[data.routineId].title;
         }
 
-        checkPageBreak(15);
-        currentY += 5;
-        // Day Header
-        printText(`📅 Fecha: ${dateStr} - Rutina: ${routineName}`, 14, true, 0, [30, 64, 175]);
-        
+        // Fila del Día
+        tableData.push([
+            { 
+                content: `Fecha: ${dateStr} - Rutina: ${routineName}`, 
+                colSpan: 5, 
+                styles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold' } 
+            }
+        ]);
+
+        // Fila de Comentario del Día
         if (data._day_note_) {
-            printText(`📝 Comentario del día: ${data._day_note_}`, 11, false, 5, [80, 80, 80]);
+            tableData.push([
+                { 
+                    content: `Comentario del día: ${data._day_note_}`, 
+                    colSpan: 5, 
+                    styles: { fillColor: [240, 248, 255], textColor: [80, 80, 80], fontStyle: 'italic' } 
+                }
+            ]);
         }
-        
+
         exKeys.forEach(exId => {
             const sets = data[exId];
             let exName = exId;
@@ -133,37 +116,56 @@ export function exportPDF(currentRoutine: RoutineConfig, startStr?: string, endS
                 });
             }
 
-            // check if exercise actually has sets done
             const setKeys = Object.keys(sets).filter(k => k !== 'note' && k !== 'done' && (sets[k].reps || sets[k].weight || sets[k].time || sets[k].done));
             if (setKeys.length === 0 && !sets.note) return;
 
-            currentY += 3;
-            printText(`🏋️ Ejercicio: ${exName}`, 12, true, 5, [40, 40, 40]);
-            
+            // Fila del Ejercicio
+            tableData.push([
+                { 
+                    content: `Ejercicio: ${exName}`, 
+                    colSpan: 5, 
+                    styles: { fillColor: [220, 230, 240], fontStyle: 'bold', textColor: [40, 40, 40] } 
+                }
+            ]);
+
+            // Fila de Nota del Ejercicio
             if (sets.note) {
-                printText(`💡 Nota: ${sets.note}`, 11, false, 10, [100, 100, 100]);
+                tableData.push([
+                    { 
+                        content: `Nota: ${sets.note}`, 
+                        colSpan: 5, 
+                        styles: { fillColor: [250, 250, 250], textColor: [100, 100, 100], fontStyle: 'italic' } 
+                    }
+                ]);
             }
-            
+
+            // Filas de las Series
             setKeys.forEach(setIdx => {
                 const s = sets[setIdx];
-                let setDetails = `* Serie ${setIdx}: `;
-                const parts = [];
-                if (s.reps) parts.push(`${s.reps} reps`);
-                if (s.weight) parts.push(`${s.weight} kg`);
-                if (s.time) parts.push(`${s.time} seg`);
-                if (parts.length === 0 && s.done) parts.push(`Hecho`);
-                
-                setDetails += parts.join(' - ');
-                printText(setDetails, 11, false, 10, [60, 60, 60]);
+                tableData.push([
+                    `Serie ${setIdx}`,
+                    s.reps ? `${s.reps}` : '-',
+                    s.weight ? `${s.weight} kg` : '-',
+                    s.time ? `${s.time} s` : '-',
+                    s.done ? 'Sí' : '-'
+                ]);
             });
         });
-        currentY += 5;
     });
 
     if (!hasData) {
         alert("No hay datos guardados para exportar en este rango.");
         return;
     }
+
+    autoTable(doc, {
+        startY: 35,
+        head: [['Serie / Info', 'Reps', 'Peso', 'Tiempo', 'Hecho']],
+        body: tableData,
+        theme: 'grid',
+        headStyles: { fillColor: [60, 60, 60] },
+        styles: { fontSize: 10 }
+    });
 
     doc.save(`gym_export_${new Date().toISOString().split('T')[0]}.pdf`);
 }
@@ -259,7 +261,7 @@ export function exportCSV(currentRoutine: RoutineConfig, startStr?: string, endS
 
 export function exportJSON(currentRoutine: RoutineConfig, startStr?: string, endStr?: string) {
     const dataToExport: any = {
-        version: "v11.5",
+        version: "v11.6",
         routine: currentRoutine,
         logs: {}
     };
