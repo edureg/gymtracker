@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, PenLine, Plus, Unlock, Lock, Download, Upload, Timer as TimerIcon, History, X, Home, Calendar, CheckCircle, Settings } from 'lucide-react';
 import { RoutineConfig, DayLog, Exercise, Routine } from './types';
 import { loadRoutineConfig, saveRoutineConfig, getDayLog, saveDayLog, getLastDayMetrics } from './utils/storage';
-import { exportCSV, exportJSON, exportPDF, importFile } from './utils/exportImport';
+import { exportCSV, exportJSON, exportPDF, importFile, exportRoutinesPDF } from './utils/exportImport';
 import ExerciseCard from './components/ExerciseCard';
 import TimerPanel from './components/TimerPanel';
 import AddExerciseModal from './components/AddExerciseModal';
@@ -563,7 +563,7 @@ export default function App() {
               <h1 className="text-3xl font-black tracking-tight bg-gradient-to-br from-white via-gray-200 to-gray-500 bg-clip-text text-transparent mb-1">
                 Gym Tracker
               </h1>
-              <div className="text-xs font-semibold text-emerald-400/80 tracking-widest uppercase">Version 11.1</div>
+              <div className="text-xs font-semibold text-emerald-400/80 tracking-widest uppercase">Version 11.2</div>
             </div>
             <button 
               onClick={openExportModal}
@@ -1022,7 +1022,21 @@ export default function App() {
                 Generar Todos
               </button>
               
-              <div className="pt-4 mt-4 border-t border-white/10">
+              <div className="pt-6 mt-4 border-t border-white/10">
+                <h3 className="text-lg font-bold mb-2">Plantillas de Rutinas</h3>
+                <p className="text-sm text-gray-400 mb-4">
+                  Descargá un listado limpio con los ejercicios de tus rutinas, sin tu historial de entrenamiento.
+                </p>
+                <button 
+                  onClick={() => { exportRoutinesPDF(routineConfig); closeExportModal(); }}
+                  className="w-full py-3 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-xl hover:bg-blue-500/30 transition flex flex-col items-center justify-center mb-4"
+                >
+                  <span className="font-semibold flex items-center gap-2">Rutinas en PDF</span>
+                  <span className="text-xs text-blue-400/70 mt-1">Solo plantillas (sin registros)</span>
+                </button>
+              </div>
+
+              <div className="pt-4 border-t border-white/10">
                  <h3 className="text-sm font-semibold text-gray-300 mb-3 text-center">Restaurar Datos (Importar)</h3>
                  <label className="w-full py-3 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-xl hover:bg-blue-500/30 transition flex flex-col items-center justify-center cursor-pointer">
                     <span className="font-semibold flex items-center gap-2">

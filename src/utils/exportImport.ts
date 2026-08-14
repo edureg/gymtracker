@@ -3,6 +3,44 @@ import { DEFAULT_ROUTINE } from '../constants';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+export function exportRoutinesPDF(currentRoutine: RoutineConfig) {
+    const doc = new jsPDF();
+    
+    doc.setFontSize(18);
+    doc.text("Mis Rutinas (Plantillas)", 14, 22);
+    
+    let currentY = 32;
+
+    Object.values(currentRoutine).forEach(routine => {
+        if (currentY > 260) {
+            doc.addPage();
+            currentY = 20;
+        }
+        
+        doc.setFontSize(14);
+        doc.text(routine.title, 14, currentY);
+        
+        const tableData = routine.exercises.map(ex => [
+            ex.name,
+            ex.sets.toString(),
+            ex.notes || '-'
+        ]);
+
+        autoTable(doc, {
+            startY: currentY + 4,
+            head: [['Ejercicio', 'Series', 'Notas']],
+            body: tableData,
+            theme: 'grid',
+            styles: { fontSize: 10 },
+            headStyles: { fillColor: [40, 40, 40] }
+        });
+        
+        currentY = (doc as any).lastAutoTable.finalY + 15;
+    });
+
+    doc.save(`plantillas_rutinas_${new Date().toISOString().split('T')[0]}.pdf`);
+}
+
 export function exportPDF(currentRoutine: RoutineConfig, startStr?: string, endStr?: string) {
     const doc = new jsPDF();
     
@@ -165,7 +203,7 @@ export function exportCSV(currentRoutine: RoutineConfig, startStr?: string, endS
 
 export function exportJSON(currentRoutine: RoutineConfig, startStr?: string, endStr?: string) {
     const dataToExport: any = {
-        version: "v11.1",
+        version: "v11.2",
         routine: currentRoutine,
         logs: {}
     };
