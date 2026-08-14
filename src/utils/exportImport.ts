@@ -59,7 +59,7 @@ export function exportPDF(currentRoutine: RoutineConfig, startStr?: string, endS
     
     let keys = Object.keys(localStorage)
         .filter(k => k.startsWith('gym_log_'))
-        .sort();
+        .sort((a, b) => b.localeCompare(a));
 
     const tableData: any[] = [];
     let hasData = false;
@@ -84,7 +84,15 @@ export function exportPDF(currentRoutine: RoutineConfig, startStr?: string, endS
         // Fila del Día
         tableData.push([
             { 
-                content: `Fecha: ${dateStr} - Rutina: ${routineName}`, 
+                content: (() => {
+                    let metricsText = "";
+                    if (data.duration) metricsText += ` | ${data.duration}`;
+                    if (data.calories) metricsText += ` | ${data.calories} kcal`;
+                    if (data.avgHeartRate || data.maxHeartRate) {
+                        metricsText += ` | ${data.avgHeartRate || '-'}-${data.maxHeartRate || '-'} lpm`;
+                    }
+                    return `Fecha: ${dateStr} - Rutina: ${routineName}${metricsText}`;
+                })(), 
                 colSpan: 5, 
                 styles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold' } 
             }
@@ -176,7 +184,7 @@ export function exportCSV(currentRoutine: RoutineConfig, startStr?: string, endS
 
     let keys = Object.keys(localStorage)
         .filter(k => k.startsWith('gym_log_'))
-        .sort();
+        .sort((a, b) => b.localeCompare(a));
 
     keys.forEach(key => {
         const dateStr = key.replace('gym_log_', '');
@@ -261,7 +269,7 @@ export function exportCSV(currentRoutine: RoutineConfig, startStr?: string, endS
 
 export function exportJSON(currentRoutine: RoutineConfig, startStr?: string, endStr?: string) {
     const dataToExport: any = {
-        version: "v11.6",
+        version: "v11.7",
         routine: currentRoutine,
         logs: {}
     };
