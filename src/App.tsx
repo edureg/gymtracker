@@ -563,7 +563,7 @@ export default function App() {
               <h1 className="text-3xl font-black tracking-tight bg-gradient-to-br from-white via-gray-200 to-gray-500 bg-clip-text text-transparent mb-1">
                 Gym Tracker
               </h1>
-              <div className="text-xs font-semibold text-emerald-400/80 tracking-widest uppercase">Version 11.2</div>
+              <div className="text-xs font-semibold text-emerald-400/80 tracking-widest uppercase">Version 11.3</div>
             </div>
             <button 
               onClick={openExportModal}

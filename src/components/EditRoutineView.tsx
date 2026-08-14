@@ -57,6 +57,7 @@ function SortableExerciseItem({ ex, onRemove, onUpdate }: { ex: Exercise, onRemo
 export default function EditRoutineView({ routine, exerciseBank, onUpdate, onClose, onDelete }: Props) {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [title, setTitle] = useState(routine.title);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
 
   const activeExercises = routine.exercises.filter(ex => ex.isActive !== false);
 
@@ -110,14 +111,27 @@ export default function EditRoutineView({ routine, exerciseBank, onUpdate, onClo
       </header>
 
       <div className="mb-6 relative">
-          <input 
-              type="text" 
-              value={title} 
-              onChange={(e) => setTitle(e.target.value)}
-              onBlur={handleSaveTitle}
-              className="w-full bg-transparent text-2xl font-bold text-white border-b border-white/20 pb-2 focus:outline-none focus:border-emerald-400 focus:bg-white/5 transition-all outline-none"
-          />
-          <PenLine className="absolute right-2 top-2 w-4 h-4 text-gray-500 pointer-events-none" />
+          {isEditingTitle ? (
+              <input 
+                  type="text" 
+                  value={title} 
+                  onChange={(e) => setTitle(e.target.value)}
+                  onBlur={() => { handleSaveTitle(); setIsEditingTitle(false); }}
+                  autoFocus
+                  onKeyDown={(e) => { if(e.key === 'Enter') { handleSaveTitle(); setIsEditingTitle(false); } }}
+                  className="w-full bg-slate-900 text-2xl font-bold text-white border-b-2 border-emerald-400 pb-2 px-2 focus:outline-none rounded-t-lg transition-all"
+              />
+          ) : (
+              <div 
+                  onClick={() => setIsEditingTitle(true)}
+                  className="flex items-center justify-between group cursor-pointer border-b border-transparent hover:border-white/20 pb-2 transition-all"
+              >
+                  <h2 className="text-2xl font-bold text-white pr-8">{title}</h2>
+                  <div className="p-2 bg-white/5 rounded-xl group-hover:bg-white/10 transition-colors">
+                      <PenLine className="w-5 h-5 text-gray-400 group-hover:text-white" />
+                  </div>
+              </div>
+          )}
       </div>
 
       <div className="mb-6 text-sm text-gray-400">

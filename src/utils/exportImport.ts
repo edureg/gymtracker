@@ -20,11 +20,13 @@ export function exportRoutinesPDF(currentRoutine: RoutineConfig) {
         doc.setFontSize(14);
         doc.text(routine.title, 14, currentY);
         
-        const tableData = routine.exercises.map(ex => [
-            ex.name,
-            ex.sets.toString(),
-            ex.notes || '-'
-        ]);
+        const tableData = routine.exercises
+            .filter(ex => ex.isActive !== false)
+            .map(ex => [
+                ex.name,
+                ex.sets.toString(),
+                ex.notes || '-'
+            ]);
 
         autoTable(doc, {
             startY: currentY + 4,
@@ -203,7 +205,7 @@ export function exportCSV(currentRoutine: RoutineConfig, startStr?: string, endS
 
 export function exportJSON(currentRoutine: RoutineConfig, startStr?: string, endStr?: string) {
     const dataToExport: any = {
-        version: "v11.2",
+        version: "v11.3",
         routine: currentRoutine,
         logs: {}
     };
