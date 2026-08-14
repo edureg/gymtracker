@@ -205,7 +205,7 @@ export function exportCSV(currentRoutine: RoutineConfig, startStr?: string, endS
 
 export function exportJSON(currentRoutine: RoutineConfig, startStr?: string, endStr?: string) {
     const dataToExport: any = {
-        version: "v11.3",
+        version: "v11.4",
         routine: currentRoutine,
         logs: {}
     };

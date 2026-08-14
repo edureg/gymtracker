@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, PenLine, Plus, Unlock, Lock, Download, Upload, Timer as TimerIcon, History, X, Home, Calendar, CheckCircle, Settings } from 'lucide-react';
 import { RoutineConfig, DayLog, Exercise, Routine } from './types';
 import { loadRoutineConfig, saveRoutineConfig, getDayLog, saveDayLog, getLastDayMetrics } from './utils/storage';
+import { runDeepCleanDeduplication } from './utils/dedup';
 import { exportCSV, exportJSON, exportPDF, importFile, exportRoutinesPDF } from './utils/exportImport';
 import ExerciseCard from './components/ExerciseCard';
 import TimerPanel from './components/TimerPanel';
@@ -178,6 +179,7 @@ export default function App() {
   const lastDayMetrics = getLastDayMetrics(currentDate, currentDayRoutine);
 
   useEffect(() => {
+    runDeepCleanDeduplication();
     setRoutineConfig(loadRoutineConfig());
   }, [refreshTrigger]);
 
@@ -563,7 +565,7 @@ export default function App() {
               <h1 className="text-3xl font-black tracking-tight bg-gradient-to-br from-white via-gray-200 to-gray-500 bg-clip-text text-transparent mb-1">
                 Gym Tracker
               </h1>
-              <div className="text-xs font-semibold text-emerald-400/80 tracking-widest uppercase">Version 11.3</div>
+              <div className="text-xs font-semibold text-emerald-400/80 tracking-widest uppercase">Version 11.4</div>
             </div>
             <button 
               onClick={openExportModal}
@@ -707,7 +709,39 @@ export default function App() {
               routine={routineConfig[editingRoutineId]}
               exerciseBank={Array.from(allExercisesMap.values())}
               onUpdate={(updated) => {
-                 const newConf = {...routineConfig, [updated.id]: updated};
+                 const oldRoutine = routineConfig[updated.id];
+                 const notesChanged = new Map<string, string>();
+                 
+                 if (oldRoutine) {
+                     updated.exercises.forEach(newEx => {
+                         const oldEx = oldRoutine.exercises.find(e => e.id === newEx.id);
+                         if (oldEx && oldEx.notes !== newEx.notes) {
+                             notesChanged.set(newEx.id, newEx.notes);
+                         }
+                     });
+                 }
+
+                 let newConf = {...routineConfig, [updated.id]: updated};
+
+                 if (notesChanged.size > 0) {
+                     Object.keys(newConf).forEach(rId => {
+                         if (rId !== updated.id) {
+                             const r = newConf[rId];
+                             let modified = false;
+                             const syncedExercises = r.exercises.map(ex => {
+                                 if (notesChanged.has(ex.id)) {
+                                     modified = true;
+                                     return { ...ex, notes: notesChanged.get(ex.id)! };
+                                 }
+                                 return ex;
+                             });
+                             if (modified) {
+                                 newConf[rId] = { ...r, exercises: syncedExercises };
+                             }
+                         }
+                     });
+                 }
+
                  setRoutineConfig(newConf);
                  saveRoutineConfig(newConf);
               }}
