@@ -1,6 +1,36 @@
 import { RoutineConfig } from '../types';
 import { DEFAULT_ROUTINE } from '../constants';
 import jsPDF from 'jspdf';
+
+async function shareOrDownloadFile(fileName: string, blob: Blob) {
+    try {
+        if (navigator.canShare) {
+            const file = new File([blob], fileName, { type: blob.type });
+            if (navigator.canShare({ files: [file] })) {
+                await navigator.share({
+                    title: fileName,
+                    files: [file]
+                });
+                return;
+            }
+        }
+    } catch (error: any) {
+        console.log('Share failed or was cancelled:', error);
+        if (error.name === 'AbortError') return; // User explicitly cancelled
+    }
+    
+    // Fallback to download
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+
 import autoTable from 'jspdf-autotable';
 
 export function exportRoutinesPDF(currentRoutine: RoutineConfig) {
@@ -40,7 +70,9 @@ export function exportRoutinesPDF(currentRoutine: RoutineConfig) {
         currentY = (doc as any).lastAutoTable.finalY + 15;
     });
 
-    doc.save(`plantillas_rutinas_${new Date().toISOString().split('T')[0]}.pdf`);
+    const fileName = `plantillas_rutinas_${new Date().toISOString().split('T')[0]}.pdf`;
+    const blob = doc.output('blob');
+    shareOrDownloadFile(fileName, blob);
 }
 
 export function exportPDF(currentRoutine: RoutineConfig, startStr?: string, endStr?: string) {
@@ -175,7 +207,9 @@ export function exportPDF(currentRoutine: RoutineConfig, startStr?: string, endS
         styles: { fontSize: 10 }
     });
 
-    doc.save(`gym_export_${new Date().toISOString().split('T')[0]}.pdf`);
+    const fileName = `gym_export_${new Date().toISOString().split('T')[0]}.pdf`;
+    const blob = doc.output('blob');
+    shareOrDownloadFile(fileName, blob);
 }
 
 export function exportCSV(currentRoutine: RoutineConfig, startStr?: string, endStr?: string) {
@@ -256,20 +290,13 @@ export function exportCSV(currentRoutine: RoutineConfig, startStr?: string, endS
     csvContent += JSON.stringify(currentRoutine);
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-
-    link.setAttribute("href", url);
-    link.setAttribute("download", `gym_export_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const fileName = `gym_export_${new Date().toISOString().split('T')[0]}.csv`;
+    shareOrDownloadFile(fileName, blob);
 }
 
 export function exportJSON(currentRoutine: RoutineConfig, startStr?: string, endStr?: string) {
     const dataToExport: any = {
-        version: "v11.7",
+        version: "v11.8",
         routine: currentRoutine,
         logs: {}
     };
@@ -286,15 +313,8 @@ export function exportJSON(currentRoutine: RoutineConfig, startStr?: string, end
 
     const jsonStr = JSON.stringify(dataToExport, null, 2);
     const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8;' });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-
-    link.setAttribute("href", url);
-    link.setAttribute("download", `gym_export_${new Date().toISOString().split('T')[0]}.json`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const fileName = `gym_export_${new Date().toISOString().split('T')[0]}.json`;
+    shareOrDownloadFile(fileName, blob);
 }
 
 export function importFile(file: File, currentRoutine: RoutineConfig, onComplete: (newConfig?: RoutineConfig) => void) {
