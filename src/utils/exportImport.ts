@@ -2,24 +2,26 @@ import { RoutineConfig } from '../types';
 import { DEFAULT_ROUTINE } from '../constants';
 import jsPDF from 'jspdf';
 
-async function shareOrDownloadFile(fileName: string, blob: Blob) {
-    try {
-        if (navigator.canShare) {
-            const file = new File([blob], fileName, { type: blob.type });
-            if (navigator.canShare({ files: [file] })) {
-                await navigator.share({
-                    title: fileName,
-                    files: [file]
-                });
-                return;
+async function processFile(fileName: string, blob: Blob, action: 'share' | 'download') {
+    if (action === 'share') {
+        try {
+            if (navigator.canShare) {
+                const file = new File([blob], fileName, { type: blob.type });
+                if (navigator.canShare({ files: [file] })) {
+                    await navigator.share({
+                        title: fileName,
+                        files: [file]
+                    });
+                    return;
+                }
             }
+        } catch (error: any) {
+            console.log('Share failed or was cancelled:', error);
+            if (error.name === 'AbortError') return; // User explicitly cancelled
         }
-    } catch (error: any) {
-        console.log('Share failed or was cancelled:', error);
-        if (error.name === 'AbortError') return; // User explicitly cancelled
     }
     
-    // Fallback to download
+    // Fallback to download or if action === 'download'
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -33,7 +35,7 @@ async function shareOrDownloadFile(fileName: string, blob: Blob) {
 
 import autoTable from 'jspdf-autotable';
 
-export function exportRoutinesPDF(currentRoutine: RoutineConfig) {
+export function exportRoutinesPDF(currentRoutine: RoutineConfig, action: 'share' | 'download' = 'share') {
     const doc = new jsPDF();
     
     doc.setFontSize(18);
@@ -72,10 +74,10 @@ export function exportRoutinesPDF(currentRoutine: RoutineConfig) {
 
     const fileName = `plantillas_rutinas_${new Date().toISOString().split('T')[0]}.pdf`;
     const blob = doc.output('blob');
-    shareOrDownloadFile(fileName, blob);
+    processFile(fileName, blob, action);
 }
 
-export function exportPDF(currentRoutine: RoutineConfig, startStr?: string, endStr?: string) {
+export function exportPDF(currentRoutine: RoutineConfig, startStr?: string, endStr?: string, action: 'share' | 'download' = 'share') {
     const doc = new jsPDF();
     
     doc.setFontSize(18);
@@ -209,10 +211,10 @@ export function exportPDF(currentRoutine: RoutineConfig, startStr?: string, endS
 
     const fileName = `gym_export_${new Date().toISOString().split('T')[0]}.pdf`;
     const blob = doc.output('blob');
-    shareOrDownloadFile(fileName, blob);
+    processFile(fileName, blob, action);
 }
 
-export function exportCSV(currentRoutine: RoutineConfig, startStr?: string, endStr?: string) {
+export function exportCSV(currentRoutine: RoutineConfig, startStr?: string, endStr?: string, action: 'share' | 'download' = 'share') {
     let csvRows: string[] = [];
     const header = "Fecha,Ejercicio,Serie,Repeticiones,Peso (kg),Tiempo (s),Notas,Nota General,Calorías,Duración,FC Promedio,FC Máxima";
 
@@ -291,12 +293,12 @@ export function exportCSV(currentRoutine: RoutineConfig, startStr?: string, endS
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const fileName = `gym_export_${new Date().toISOString().split('T')[0]}.csv`;
-    shareOrDownloadFile(fileName, blob);
+    processFile(fileName, blob, action);
 }
 
-export function exportJSON(currentRoutine: RoutineConfig, startStr?: string, endStr?: string) {
+export function exportJSON(currentRoutine: RoutineConfig, startStr?: string, endStr?: string, action: 'share' | 'download' = 'share') {
     const dataToExport: any = {
-        version: "v11.8",
+        version: "v11.9",
         routine: currentRoutine,
         logs: {}
     };
@@ -314,7 +316,7 @@ export function exportJSON(currentRoutine: RoutineConfig, startStr?: string, end
     const jsonStr = JSON.stringify(dataToExport, null, 2);
     const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8;' });
     const fileName = `gym_export_${new Date().toISOString().split('T')[0]}.json`;
-    shareOrDownloadFile(fileName, blob);
+    processFile(fileName, blob, action);
 }
 
 export function importFile(file: File, currentRoutine: RoutineConfig, onComplete: (newConfig?: RoutineConfig) => void) {

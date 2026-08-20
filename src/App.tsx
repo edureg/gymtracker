@@ -594,7 +594,7 @@ export default function App() {
               <h1 className="text-3xl font-black tracking-tight bg-gradient-to-br from-white via-gray-200 to-gray-500 bg-clip-text text-transparent mb-1">
                 Gym Tracker
               </h1>
-              <div className="text-xs font-semibold text-emerald-400/80 tracking-widest uppercase">Version 11.8</div>
+              <div className="text-xs font-semibold text-emerald-400/80 tracking-widest uppercase">Version 11.9</div>
             </div>
             <button 
               onClick={openExportModal}
@@ -1050,8 +1050,8 @@ export default function App() {
       </div>
 
       {isExportModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="bg-slate-900 border border-white/10 p-6 rounded-2xl w-full max-w-sm relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-slate-900 border border-white/10 p-6 rounded-2xl w-full max-w-sm relative my-auto max-h-[90vh] overflow-y-auto flex flex-col">
             <button 
               onClick={closeExportModal}
               className="absolute top-4 right-4 text-gray-400 hover:text-white"
@@ -1093,34 +1093,39 @@ export default function App() {
               )}
             </div>
 
-            <div className="space-y-3">
-              <button 
-                onClick={() => executeExport('pdf')}
-                className="w-full py-3 bg-red-500/20 text-red-400 border border-red-500/30 rounded-xl hover:bg-red-500/30 transition flex flex-col items-center justify-center"
-              >
-                <span className="font-semibold flex items-center gap-2">Reporte en PDF</span>
-                <span className="text-xs text-red-400/70 mt-1">Ideal para leer o imprimir</span>
-              </button>
-              <button 
-                onClick={() => executeExport('csv')}
-                className="w-full py-3 bg-black/40 border border-white/20 rounded-xl hover:bg-white/5 transition flex flex-col items-center justify-center"
-              >
-                <span className="font-semibold text-white">Solo CSV</span>
-                <span className="text-xs text-gray-400 mt-1">Ideal para Excel / Hojas de cálculo</span>
-              </button>
-              <button 
-                onClick={() => executeExport('json')}
-                className="w-full py-3 bg-black/40 border border-white/20 rounded-xl hover:bg-white/5 transition flex flex-col items-center justify-center"
-              >
-                <span className="font-semibold text-white">Solo JSON</span>
-                <span className="text-xs text-gray-400 mt-1">Para restaurar en Gym Tracker</span>
-              </button>
-              <button 
-                onClick={() => executeExport('all')}
-                className="w-full py-3 bg-emerald-400 text-black font-semibold rounded-xl shadow-[0_0_10px_rgba(52,211,153,0.4)] transition"
-              >
-                Generar Todos
-              </button>
+            <div className="space-y-4">
+              <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-white">Reporte PDF</span>
+                  <span className="text-xs text-gray-400 ml-auto">Ideal para leer</span>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => executeExport('pdf', 'share')} className="flex-1 py-2 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg hover:bg-emerald-500/30 transition text-sm font-semibold">Compartir</button>
+                  <button onClick={() => executeExport('pdf', 'download')} className="flex-1 py-2 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-lg hover:bg-blue-500/30 transition text-sm font-semibold">Descargar</button>
+                </div>
+              </div>
+
+              <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-white">Solo CSV</span>
+                  <span className="text-xs text-gray-400 ml-auto">Para Excel</span>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => executeExport('csv', 'share')} className="flex-1 py-2 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg hover:bg-emerald-500/30 transition text-sm font-semibold">Compartir</button>
+                  <button onClick={() => executeExport('csv', 'download')} className="flex-1 py-2 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-lg hover:bg-blue-500/30 transition text-sm font-semibold">Descargar</button>
+                </div>
+              </div>
+
+              <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-white">Solo JSON</span>
+                  <span className="text-xs text-gray-400 ml-auto">Para restaurar</span>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => executeExport('json', 'share')} className="flex-1 py-2 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg hover:bg-emerald-500/30 transition text-sm font-semibold">Compartir</button>
+                  <button onClick={() => executeExport('json', 'download')} className="flex-1 py-2 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-lg hover:bg-blue-500/30 transition text-sm font-semibold">Descargar</button>
+                </div>
+              </div>
               
               <div className="pt-6 mt-4 border-t border-white/10">
                 <h3 className="text-lg font-bold mb-2">Plantillas de Rutinas</h3>
