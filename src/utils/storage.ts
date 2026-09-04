@@ -152,15 +152,13 @@ export function getLastDayMetrics(currentDate: Date, routine: any) {
         }
 
         if (isMatch) {
-            if (data.calories || data.duration || data.avgHeartRate || data.maxHeartRate) {
-                return {
-                    date: session.dateStr,
-                    calories: data.calories,
-                    duration: data.duration,
-                    avgHeartRate: data.avgHeartRate,
-                    maxHeartRate: data.maxHeartRate
-                };
-            }
+            return {
+                date: session.dateStr,
+                calories: data.calories,
+                duration: data.duration,
+                avgHeartRate: data.avgHeartRate,
+                maxHeartRate: data.maxHeartRate
+            };
         }
     }
 
