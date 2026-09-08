@@ -1,4 +1,5 @@
 import { RoutineConfig } from '../types';
+import { getMasterExercises } from './storage';
 import { DEFAULT_ROUTINE } from '../constants';
 import jsPDF from 'jspdf';
 
@@ -290,6 +291,10 @@ export function exportCSV(currentRoutine: RoutineConfig, startStr?: string, endS
     // Append routine config
     csvContent += "\n---ROUTINE_CONFIG---\n";
     csvContent += JSON.stringify(currentRoutine);
+    
+    // Append master exercises
+    csvContent += "\n---MASTER_EXERCISES---\n";
+    csvContent += JSON.stringify(getMasterExercises());
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const fileName = `gym_export_${new Date().toISOString().split('T')[0]}.csv`;
@@ -298,8 +303,9 @@ export function exportCSV(currentRoutine: RoutineConfig, startStr?: string, endS
 
 export function exportJSON(currentRoutine: RoutineConfig, startStr?: string, endStr?: string, action: 'share' | 'download' = 'share') {
     const dataToExport: any = {
-        version: "v11.10",
+        version: "v11.12",
         routine: currentRoutine,
+        master_exercises: getMasterExercises(),
         logs: {}
     };
 
@@ -355,12 +361,18 @@ function importJSON(file: File, currentRoutine: RoutineConfig, onComplete: (newC
             }
 
             let newConfig: RoutineConfig | undefined;
+            let importedMaster = false;
+            
             if (parsed.routine) {
                 newConfig = parsed.routine;
                 localStorage.setItem('gym_routine_config', JSON.stringify(newConfig));
             }
+            if (parsed.master_exercises) {
+                localStorage.setItem('gym_master_exercises', JSON.stringify(parsed.master_exercises));
+                importedMaster = true;
+            }
 
-            alert(`¡Importación JSON finalizada! Se restauraron ${logsCount} días de historial${newConfig ? ' y la configuración de tu rutina' : ''}.`);
+            alert(`¡Importación JSON finalizada! Se restauraron ${logsCount} días de historial${newConfig ? ', rutinas' : ''}${importedMaster ? ' y el maestro de ejercicios' : ''}.`);
             onComplete(newConfig);
         } catch (err) {
             console.error(err);
@@ -381,7 +393,15 @@ function importCSV(file: File, currentRoutine: RoutineConfig, onComplete: (newCo
         // Split text to separate logs from config
         const parts = text.split("\n---ROUTINE_CONFIG---\n");
         const logsText = parts[0];
-        const configText = parts.length > 1 ? parts[1] : null;
+        
+        let configText = null;
+        let masterText = null;
+        
+        if (parts.length > 1) {
+            const subParts = parts[1].split("\n---MASTER_EXERCISES---\n");
+            configText = subParts[0];
+            masterText = subParts.length > 1 ? subParts[1] : null;
+        }
 
         const lines = logsText.split('\n');
 
@@ -481,4 +501,44 @@ function importCSV(file: File, currentRoutine: RoutineConfig, onComplete: (newCo
     };
 
     reader.readAsText(file);
+}
+
+export function exportMasterDict(currentRoutine: RoutineConfig, action: 'share' | 'download' = 'share') {
+    const doc = new jsPDF();
+    doc.setFontSize(18);
+    doc.text("Maestro de Ejercicios", 14, 22);
+    
+    const master = getMasterExercises();
+    const sorted = Object.values(master).sort((a, b) => a.name.localeCompare(b.name));
+    
+    const tableData = sorted.map(m => {
+        const activeIn = Object.values(currentRoutine)
+            .filter(r => r.exercises?.some(ex => ex.id === m.id && ex.isActive !== false))
+            .map(r => r.title)
+            .join(', ');
+            
+        return [
+            m.name,
+            m.notes || '-',
+            activeIn || 'Ninguna'
+        ];
+    });
+
+    autoTable(doc, {
+        startY: 30,
+        head: [['Ejercicio', 'Aclaraciones / Notas', 'Rutinas Activas']],
+        body: tableData,
+        theme: 'grid',
+        headStyles: { fillColor: [40, 167, 69] },
+        styles: { fontSize: 10, cellPadding: 4 },
+        columnStyles: {
+            0: { cellWidth: 50, fontStyle: 'bold' },
+            1: { cellWidth: 'auto' },
+            2: { cellWidth: 50, fontStyle: 'italic', textColor: [100, 100, 100] }
+        }
+    });
+
+    const fileName = `maestro_ejercicios_${new Date().toISOString().split('T')[0]}.pdf`;
+    const blob = doc.output('blob');
+    processFile(fileName, blob, action);
 }

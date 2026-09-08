@@ -12,7 +12,7 @@ interface Props {
   onDelete: () => void;
 }
 
-function SortableExerciseItem({ ex, onRemove, onUpdate }: { ex: Exercise, onRemove: (id: string) => void, onUpdate: (id: string, updates: Partial<Exercise>) => void }) {
+const SortableExerciseItem: React.FC<{ ex: Exercise, onRemove: (id: string) => void, onUpdate: (id: string, updates: Partial<Exercise>) => void }> = ({ ex, onRemove, onUpdate }) => {
     const controls = useDragControls();
 
     return (

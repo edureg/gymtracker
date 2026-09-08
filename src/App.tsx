@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Reorder, useDragControls } from 'motion/react';
-import { ChevronLeft, GripVertical, ArrowUpDown, ChevronRight, PenLine, Plus, Unlock, Lock, Download, Upload, Timer as TimerIcon, History, X, Home, Calendar, CheckCircle, Settings } from 'lucide-react';
+import { ChevronLeft, BookOpen, GripVertical, ArrowUpDown, ChevronRight, PenLine, Plus, Unlock, Lock, Download, Upload, Timer as TimerIcon, History, X, Home, Calendar, CheckCircle, Settings } from 'lucide-react';
 import { RoutineConfig, DayLog, Exercise, Routine } from './types';
-import { loadRoutineConfig, saveRoutineConfig, getDayLog, saveDayLog, getLastDayMetrics } from './utils/storage';
+import { loadRoutineConfig, saveRoutineConfig, getDayLog, saveDayLog, getLastDayMetrics, getMasterExercises, updateMasterExerciseNote, deleteMasterExercise } from './utils/storage';
+import MasterManagerModal from './components/MasterManagerModal';
 import { runDeepCleanDeduplication } from './utils/dedup';
-import { exportCSV, exportJSON, exportPDF, importFile, exportRoutinesPDF } from './utils/exportImport';
+import { exportCSV, exportJSON, exportPDF, importFile, exportRoutinesPDF, exportMasterDict } from './utils/exportImport';
 import ExerciseCard from './components/ExerciseCard';
 import TimerPanel from './components/TimerPanel';
 import AddExerciseModal from './components/AddExerciseModal';
@@ -12,7 +13,7 @@ import RoutineHistoryModal from './components/RoutineHistoryModal';
 import EditRoutineView from './components/EditRoutineView';
 import CalendarView from './components/CalendarView';
 
-function SortableRoutineItem({ routine, onEdit, onStart }: { routine: Routine, onEdit: () => void, onStart: () => void }) {
+const SortableRoutineItem: React.FC<{ routine: Routine, onEdit: () => void, onStart: () => void }> = ({ routine, onEdit, onStart }) => {
     const controls = useDragControls();
     return (
         <Reorder.Item value={routine} dragListener={false} dragControls={controls}>
@@ -45,6 +46,7 @@ export default function App() {
   const [dayLog, setDayLog] = useState<DayLog>({});
   const [isTimerOpen, setIsTimerOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isMasterManagerOpen, setIsMasterManagerOpen] = useState(false);
   const [isReorderingRoutines, setIsReorderingRoutines] = useState(false);
   const [exportRangeType, setExportRangeType] = useState<'30_days' | 'custom' | 'all'>('30_days');
   const [exportStartDate, setExportStartDate] = useState(() => {
@@ -102,6 +104,7 @@ export default function App() {
 
   const closeExportModal = () => {
       setIsExportModalOpen(false);
+          setIsMasterManagerOpen(false);
       if (window.history.state?.modal === 'export') {
           window.history.back();
       }
@@ -109,7 +112,7 @@ export default function App() {
 
   useEffect(() => {
     const handlePopState = (e: PopStateEvent) => {
-      if (routineForHistory || isExportModalOpen) {
+      if (routineForHistory || isExportModalOpen || isMasterManagerOpen) {
           setRoutineForHistory(null);
           setIsExportModalOpen(false);
       }
@@ -153,12 +156,25 @@ export default function App() {
 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  // Compute Exercise Bank (all unique exercises across all days)
+  // Compute Exercise Bank using Master Dictionary
   const allExercisesMap = new Map<string, Exercise>();
+  const masterDict = getMasterExercises();
+  
+  // First load from master
+  Object.values(masterDict).forEach(m => {
+      allExercisesMap.set(m.id, { id: m.id, name: m.name, notes: m.notes, sets: 3, isActive: true });
+  });
+
+  // Then overlay any runtime specific defaults from routines (like sets, hasTime)
   (Object.values(routineConfig) as Routine[]).forEach(day => {
     day.exercises?.forEach(ex => {
-      if (!allExercisesMap.has(ex.id)) {
-        allExercisesMap.set(ex.id, ex);
+      if (allExercisesMap.has(ex.id)) {
+          const existing = allExercisesMap.get(ex.id)!;
+          // Keep the master notes, but update sets/hasTime if missing
+          existing.sets = ex.sets || existing.sets;
+          existing.hasTime = ex.hasTime !== undefined ? ex.hasTime : existing.hasTime;
+      } else {
+          allExercisesMap.set(ex.id, ex);
       }
     });
   });
@@ -292,7 +308,7 @@ export default function App() {
     openExportModal();
   };
 
-  const executeExport = (type: 'csv' | 'json' | 'pdf' | 'all') => {
+  const executeExport = (type: 'csv' | 'json' | 'pdf' | 'all', action: 'share' | 'download' = 'share') => {
     let startStr: string | undefined;
     let endStr: string | undefined;
 
@@ -306,14 +322,15 @@ export default function App() {
     }
 
     if (type === 'csv' || type === 'all') {
-      exportCSV(routineConfig, startStr, endStr);
+      exportCSV(routineConfig, startStr, endStr, action);
     }
     if (type === 'json' || type === 'all') {
-      exportJSON(routineConfig, startStr, endStr);
+      exportJSON(routineConfig, startStr, endStr, action);
     }
     if (type === 'pdf' || type === 'all') {
-      exportPDF(routineConfig, startStr, endStr);
+      exportPDF(routineConfig, startStr, endStr, action);
     }
+
     closeExportModal();
   };
 
@@ -594,14 +611,24 @@ export default function App() {
               <h1 className="text-3xl font-black tracking-tight bg-gradient-to-br from-white via-gray-200 to-gray-500 bg-clip-text text-transparent mb-1">
                 Gym Tracker
               </h1>
-              <div className="text-xs font-semibold text-emerald-400/80 tracking-widest uppercase">Version 11.10</div>
+              <div className="text-xs font-semibold text-emerald-400/80 tracking-widest uppercase">Version 11.11</div>
             </div>
-            <button 
-              onClick={openExportModal}
-              className="p-3 bg-slate-900 border border-white/10 rounded-xl hover:bg-white/5 transition-colors shadow-sm cursor-pointer"
-            >
-              <Settings className="w-5 h-5 text-gray-400" />
-            </button>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => setIsMasterManagerOpen(true)}
+                className="p-3 bg-slate-900 border border-white/10 rounded-xl hover:bg-white/5 transition-colors shadow-sm cursor-pointer"
+                title="Maestro de Ejercicios"
+              >
+                <BookOpen className="w-5 h-5 text-gray-400" />
+              </button>
+              <button 
+                onClick={openExportModal}
+                className="p-3 bg-slate-900 border border-white/10 rounded-xl hover:bg-white/5 transition-colors shadow-sm cursor-pointer"
+                title="Configuración y Backups"
+              >
+                <Settings className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
           </header>
 
           {todayRoutineObj ? (
@@ -783,6 +810,9 @@ export default function App() {
                          const oldEx = oldRoutine.exercises.find(e => e.id === newEx.id);
                          if (oldEx && oldEx.notes !== newEx.notes) {
                              notesChanged.set(newEx.id, newEx.notes);
+                         } else if (!oldEx && newEx.notes) {
+                             // It's a newly added exercise that has notes
+                             notesChanged.set(newEx.id, newEx.notes);
                          }
                      });
                  }
@@ -790,6 +820,13 @@ export default function App() {
                  let newConf = {...routineConfig, [updated.id]: updated};
 
                  if (notesChanged.size > 0) {
+                     // Update the master dictionary
+                     notesChanged.forEach((note, exId) => {
+                         const exName = updated.exercises.find(e => e.id === exId)?.name || '';
+                         updateMasterExerciseNote(exId, exName, note);
+                     });
+                     
+                     // Sync to other routines
                      Object.keys(newConf).forEach(rId => {
                          if (rId !== updated.id) {
                              const r = newConf[rId];
@@ -1059,6 +1096,21 @@ export default function App() {
         </button>
       </div>
 
+      {isMasterManagerOpen && (
+        <MasterManagerModal
+          masterDict={getMasterExercises()}
+          routineConfig={routineConfig}
+          onClose={() => setIsMasterManagerOpen(false)}
+          onDelete={(id) => {
+            deleteMasterExercise(id);
+            setRefreshTrigger(prev => prev + 1);
+          }}
+          onUpdate={(id, name, notes) => {
+            updateMasterExerciseNote(id, name, notes);
+            setRefreshTrigger(prev => prev + 1);
+          }}
+        />
+      )}
       {isExportModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="bg-slate-900 border border-white/10 p-6 rounded-2xl w-full max-w-sm relative my-auto max-h-[90vh] overflow-y-auto flex flex-col">
@@ -1140,15 +1192,23 @@ export default function App() {
               <div className="pt-6 mt-4 border-t border-white/10">
                 <h3 className="text-lg font-bold mb-2">Plantillas de Rutinas</h3>
                 <p className="text-sm text-gray-400 mb-4">
-                  Descargá un listado limpio con los ejercicios de tus rutinas, sin tu historial de entrenamiento.
+                  Descargá un listado limpio con los ejercicios de tus rutinas.
                 </p>
-                <button 
-                  onClick={() => { exportRoutinesPDF(routineConfig); closeExportModal(); }}
-                  className="w-full py-3 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-xl hover:bg-blue-500/30 transition flex flex-col items-center justify-center mb-4"
-                >
-                  <span className="font-semibold flex items-center gap-2">Rutinas en PDF</span>
-                  <span className="text-xs text-blue-400/70 mt-1">Solo plantillas (sin registros)</span>
-                </button>
+                <div className="flex gap-2 mb-4">
+                  <button onClick={() => { exportRoutinesPDF(routineConfig, 'share'); closeExportModal(); }} className="flex-1 py-3 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-xl hover:bg-emerald-500/30 transition font-semibold">Compartir</button>
+                  <button onClick={() => { exportRoutinesPDF(routineConfig, 'download'); closeExportModal(); }} className="flex-1 py-3 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-xl hover:bg-blue-500/30 transition font-semibold">Descargar</button>
+                </div>
+              </div>
+
+              <div className="pt-6 mt-4 border-t border-white/10">
+                <h3 className="text-lg font-bold mb-2">Maestro de Ejercicios</h3>
+                <p className="text-sm text-gray-400 mb-4">
+                  Exportá el diccionario con todos tus ejercicios y sus aclaraciones técnicas en PDF.
+                </p>
+                <div className="flex gap-2 mb-4">
+                  <button onClick={() => { exportMasterDict(routineConfig, 'share'); closeExportModal(); }} className="flex-1 py-3 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-xl hover:bg-emerald-500/30 transition font-semibold">Compartir</button>
+                  <button onClick={() => { exportMasterDict(routineConfig, 'download'); closeExportModal(); }} className="flex-1 py-3 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-xl hover:bg-blue-500/30 transition font-semibold">Descargar</button>
+                </div>
               </div>
 
               <div className="pt-4 border-t border-white/10">
