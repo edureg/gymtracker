@@ -40,10 +40,25 @@ export default function AddExerciseModal({ onClose, onAdd, exerciseBank }: Props
       return;
     }
     
+    let finalId = selectedId;
+    let finalNotes = notes.trim();
+    
+    // Auto-match by exact name if no dropdown was used
+    if (!finalId) {
+        const existing = exerciseBank.find(x => x.name.trim().toLowerCase() === name.trim().toLowerCase());
+        if (existing) {
+            finalId = existing.id;
+            // Only inherit notes if they didn't type anything new
+            if (!finalNotes) {
+                finalNotes = existing.notes || '';
+            }
+        }
+    }
+    
     onAdd({
-      id: selectedId || 'custom_' + Date.now(),
+      id: finalId || 'custom_' + Date.now(),
       name: name.trim(),
-      notes: notes.trim(),
+      notes: finalNotes,
       sets,
       hasTime,
       isActive: true
