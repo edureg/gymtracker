@@ -611,7 +611,7 @@ export default function App() {
               <h1 className="text-3xl font-black tracking-tight bg-gradient-to-br from-white via-gray-200 to-gray-500 bg-clip-text text-transparent mb-1">
                 Gym Tracker
               </h1>
-              <div className="text-xs font-semibold text-emerald-400/80 tracking-widest uppercase">Version 11.15</div>
+              <div className="text-xs font-semibold text-emerald-400/80 tracking-widest uppercase">Version 11.16</div>
             </div>
             <div className="flex gap-2">
               <button 
@@ -967,7 +967,7 @@ export default function App() {
               </div>
               {lastDayMetrics && (
                   <div className="text-xs font-medium text-emerald-500/70 italic">
-                      Últ. vez ({lastDayMetrics.date.slice(5).replace('-', '/')})
+                      Últ. vez ({lastDayMetrics.date.split('-').reverse().join('/')})
                       {lastDayMetrics.duration ? ` | ${lastDayMetrics.duration}` : ''}
                       {lastDayMetrics.calories ? ` | ${lastDayMetrics.calories} kcal` : ''}
                       {(lastDayMetrics.avgHeartRate || lastDayMetrics.maxHeartRate) ? ` | ${lastDayMetrics.avgHeartRate || '-'}-${lastDayMetrics.maxHeartRate || '-'} lpm` : ''}

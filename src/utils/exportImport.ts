@@ -303,7 +303,7 @@ export function exportCSV(currentRoutine: RoutineConfig, startStr?: string, endS
 
 export function exportJSON(currentRoutine: RoutineConfig, startStr?: string, endStr?: string, action: 'share' | 'download' = 'share') {
     const dataToExport: any = {
-        version: "v11.15",
+        version: "v11.16",
         routine: currentRoutine,
         master_exercises: getMasterExercises(),
         logs: {}
