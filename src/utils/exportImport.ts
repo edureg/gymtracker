@@ -1,7 +1,9 @@
-import { RoutineConfig } from '../types';
-import { getMasterExercises } from './storage';
+import { RoutineConfig, Exercise } from '../types';
+import { getMasterExercises, saveRoutineConfig } from './storage';
+import { groupExercisesIntoBlocks, formatTargetSummary } from './routineBlocks';
 import { DEFAULT_ROUTINE } from '../constants';
 import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 async function processFile(fileName: string, blob: Blob, action: 'share' | 'download') {
     if (action === 'share') {
@@ -33,8 +35,102 @@ async function processFile(fileName: string, blob: Blob, action: 'share' | 'down
     URL.revokeObjectURL(url);
 }
 
+function escapeCSV(val: string | undefined | null): string {
+    if (!val) return '""';
+    return `"${String(val).replace(/"/g, '""')}"`;
+}
 
-import autoTable from 'jspdf-autotable';
+function parseCSVLine(line: string): string[] {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (inQuotes) {
+            if (ch === '"') {
+                if (i + 1 < line.length && line[i + 1] === '"') {
+                    current += '"';
+                    i++;
+                } else {
+                    inQuotes = false;
+                }
+            } else {
+                current += ch;
+            }
+        } else {
+            if (ch === '"') {
+                inQuotes = true;
+            } else if (ch === ',') {
+                result.push(current);
+                current = '';
+            } else {
+                current += ch;
+            }
+        }
+    }
+    result.push(current);
+    return result;
+}
+
+function findExerciseContext(exId: string, routineId: string | undefined, currentRoutine: RoutineConfig): {
+    exName: string;
+    biserieName: string;
+    targetSummary: string;
+} {
+    let matchedEx: Exercise | undefined;
+    let biserieName = '';
+
+    if (routineId && currentRoutine[routineId]) {
+        const r = currentRoutine[routineId];
+        matchedEx = r.exercises?.find(e => e.id === exId);
+        if (matchedEx?.supersetId && r.supersets?.[matchedEx.supersetId]) {
+            biserieName = r.supersets[matchedEx.supersetId].name || 'Biserie';
+        }
+    }
+
+    if (!matchedEx) {
+        for (const r of Object.values(currentRoutine)) {
+            const found = r.exercises?.find(e => e.id === exId);
+            if (found) {
+                matchedEx = found;
+                if (found.supersetId && r.supersets?.[found.supersetId]) {
+                    biserieName = r.supersets[found.supersetId].name || 'Biserie';
+                }
+                break;
+            }
+        }
+    }
+
+    if (!matchedEx) {
+        for (const r of Object.values(DEFAULT_ROUTINE)) {
+            const found = r.exercises?.find(e => e.id === exId);
+            if (found) {
+                matchedEx = found;
+                break;
+            }
+        }
+    }
+
+    return {
+        exName: matchedEx ? matchedEx.name : exId,
+        biserieName,
+        targetSummary: matchedEx ? (formatTargetSummary(matchedEx) || '') : ''
+    };
+}
+
+function sortExKeysByRoutine(exKeys: string[], routineId: string | undefined, currentRoutine: RoutineConfig): string[] {
+    if (!routineId || !currentRoutine[routineId]?.exercises) return exKeys;
+    const order = currentRoutine[routineId].exercises.map(e => e.id);
+    return [...exKeys].sort((a, b) => {
+        const idxA = order.indexOf(a);
+        const idxB = order.indexOf(b);
+        if (idxA === -1 && idxB === -1) return 0;
+        if (idxA === -1) return 1;
+        if (idxB === -1) return -1;
+        return idxA - idxB;
+    });
+}
 
 export function exportRoutinesPDF(currentRoutine: RoutineConfig, action: 'share' | 'download' = 'share') {
     const doc = new jsPDF();
@@ -45,29 +141,68 @@ export function exportRoutinesPDF(currentRoutine: RoutineConfig, action: 'share'
     let currentY = 32;
 
     Object.values(currentRoutine).forEach(routine => {
-        if (currentY > 260) {
+        if (currentY > 255) {
             doc.addPage();
             currentY = 20;
         }
         
         doc.setFontSize(14);
         doc.text(routine.title, 14, currentY);
-        
-        const tableData = routine.exercises
-            .filter(ex => ex.isActive !== false)
-            .map(ex => [
-                ex.name,
-                ex.sets.toString(),
-                ex.notes || '-'
-            ]);
+
+        const activeExs = (routine.exercises || []).filter(ex => ex.isActive !== false);
+        const blocks = groupExercisesIntoBlocks(activeExs, routine.supersets);
+        const tableData: any[] = [];
+
+        blocks.forEach(block => {
+            if (block.type === 'superset') {
+                const { superset, exercises } = block;
+                const roundsLabel = `${superset.rounds} ${superset.rounds === 1 ? 'ronda' : 'rondas'}`;
+                const headerText = `${superset.name || 'Biserie'} — ${roundsLabel}${superset.notes ? ` | ${superset.notes}` : ''}`;
+
+                tableData.push([
+                    {
+                        content: headerText,
+                        colSpan: 4,
+                        styles: { fillColor: [230, 245, 238], textColor: [20, 83, 45], fontStyle: 'bold' }
+                    }
+                ]);
+
+                exercises.forEach(ex => {
+                    tableData.push([
+                        `  • ${ex.name}`,
+                        ex.sets.toString(),
+                        formatTargetSummary(ex) || '-',
+                        ex.notes || '-'
+                    ]);
+                });
+            } else {
+                const ex = block.exercise;
+                tableData.push([
+                    ex.name,
+                    ex.sets.toString(),
+                    formatTargetSummary(ex) || '-',
+                    ex.notes || '-'
+                ]);
+            }
+        });
+
+        if (tableData.length === 0) {
+            tableData.push(['Sin ejercicios activos', '-', '-', '-']);
+        }
 
         autoTable(doc, {
             startY: currentY + 4,
-            head: [['Ejercicio', 'Series', 'Notas']],
+            head: [['Ejercicio', 'Series / Rondas', 'Objetivo Próx. Vez', 'Notas']],
             body: tableData,
             theme: 'grid',
-            styles: { fontSize: 10 },
-            headStyles: { fillColor: [40, 40, 40] }
+            styles: { fontSize: 9.5 },
+            headStyles: { fillColor: [40, 40, 40] },
+            columnStyles: {
+                0: { cellWidth: 58 },
+                1: { cellWidth: 28, halign: 'center' },
+                2: { cellWidth: 38 },
+                3: { cellWidth: 'auto' }
+            }
         });
         
         currentY = (doc as any).lastAutoTable.finalY + 15;
@@ -106,9 +241,9 @@ export function exportPDF(currentRoutine: RoutineConfig, startStr?: string, endS
         if (endStr && dateStr > endStr) return;
 
         const data = JSON.parse(localStorage.getItem(key) || '{}');
-        const exKeys = Object.keys(data).filter(k => !['_day_note_', 'calories', 'duration', 'avgHeartRate', 'maxHeartRate', 'routineId'].includes(k));
+        const rawExKeys = Object.keys(data).filter(k => !['_day_note_', 'calories', 'duration', 'avgHeartRate', 'maxHeartRate', 'routineId'].includes(k));
         
-        if (exKeys.length === 0 && !data._day_note_) return;
+        if (rawExKeys.length === 0 && !data._day_note_) return;
         hasData = true;
 
         let routineName = "Libre";
@@ -144,28 +279,23 @@ export function exportPDF(currentRoutine: RoutineConfig, startStr?: string, endS
             ]);
         }
 
+        const exKeys = sortExKeysByRoutine(rawExKeys, data.routineId, currentRoutine);
+
         exKeys.forEach(exId => {
             const sets = data[exId];
-            let exName = exId;
-
-            Object.values(currentRoutine).forEach(routine => {
-                const foundInCurrent = routine.exercises?.find(e => e.id === exId);
-                if (foundInCurrent) exName = foundInCurrent.name;
-            });
-            if (exName === exId) {
-                Object.values(DEFAULT_ROUTINE).forEach(routine => {
-                    const foundInOriginal = routine.exercises?.find(e => e.id === exId);
-                    if (foundInOriginal) exName = foundInOriginal.name;
-                });
-            }
+            if (!sets || typeof sets !== 'object') return;
+            const { exName, biserieName, targetSummary } = findExerciseContext(exId, data.routineId, currentRoutine);
 
             const setKeys = Object.keys(sets).filter(k => k !== 'note' && k !== 'done' && (sets[k].reps || sets[k].weight || sets[k].time || sets[k].done));
             if (setKeys.length === 0 && !sets.note) return;
 
+            const prefix = biserieName ? `[${biserieName}] ` : '';
+            const targetSuffix = targetSummary ? ` | Obj: ${targetSummary}` : '';
+
             // Fila del Ejercicio
             tableData.push([
                 { 
-                    content: `Ejercicio: ${exName}`, 
+                    content: `Ejercicio: ${prefix}${exName}${targetSuffix}`, 
                     colSpan: 5, 
                     styles: { fillColor: [220, 230, 240], fontStyle: 'bold', textColor: [40, 40, 40] } 
                 }
@@ -186,7 +316,7 @@ export function exportPDF(currentRoutine: RoutineConfig, startStr?: string, endS
             setKeys.forEach(setIdx => {
                 const s = sets[setIdx];
                 tableData.push([
-                    `Serie ${setIdx}`,
+                    biserieName ? `Ronda ${setIdx}` : `Serie ${setIdx}`,
                     s.reps ? `${s.reps}` : '-',
                     s.weight ? `${s.weight} kg` : '-',
                     s.time ? `${s.time} s` : '-',
@@ -203,7 +333,7 @@ export function exportPDF(currentRoutine: RoutineConfig, startStr?: string, endS
 
     autoTable(doc, {
         startY: 35,
-        head: [['Serie / Info', 'Reps', 'Peso', 'Tiempo', 'Hecho']],
+        head: [['Serie / Ronda', 'Reps', 'Peso', 'Tiempo', 'Hecho']],
         body: tableData,
         theme: 'grid',
         headStyles: { fillColor: [60, 60, 60] },
@@ -217,7 +347,7 @@ export function exportPDF(currentRoutine: RoutineConfig, startStr?: string, endS
 
 export function exportCSV(currentRoutine: RoutineConfig, startStr?: string, endStr?: string, action: 'share' | 'download' = 'share') {
     let csvRows: string[] = [];
-    const header = "Fecha,Ejercicio,Serie,Repeticiones,Peso (kg),Tiempo (s),Notas,Nota General,Calorías,Duración,FC Promedio,FC Máxima";
+    const header = "Fecha,Biserie,Ejercicio,Serie,Repeticiones,Peso (kg),Tiempo (s),Objetivo,Notas,Nota General,Calorías,Duración,FC Promedio,FC Máxima";
 
     let keys = Object.keys(localStorage)
         .filter(k => k.startsWith('gym_log_'))
@@ -232,7 +362,6 @@ export function exportCSV(currentRoutine: RoutineConfig, startStr?: string, endS
         const data = JSON.parse(localStorage.getItem(key) || '{}');
 
         const dayNoteRaw = data._day_note_ || '';
-        const dayNoteStr = dayNoteRaw.replace(/"/g, '""');
         const calories = data.calories || '';
         const duration = data.duration || '';
         const avgHeartRate = data.avgHeartRate || '';
@@ -240,39 +369,45 @@ export function exportCSV(currentRoutine: RoutineConfig, startStr?: string, endS
 
         let isFirstRowOfDay = true;
 
-        Object.keys(data).forEach(exId => {
-            if (exId === '_day_note_' || exId === 'calories' || exId === 'duration' || exId === 'avgHeartRate' || exId === 'maxHeartRate' || exId === 'routineId') return;
+        const rawExKeys = Object.keys(data).filter(exId => 
+            !['_day_note_', 'calories', 'duration', 'avgHeartRate', 'maxHeartRate', 'routineId'].includes(exId)
+        );
+        const exKeys = sortExKeysByRoutine(rawExKeys, data.routineId, currentRoutine);
+
+        exKeys.forEach(exId => {
             const sets = data[exId];
-            let exName = exId;
-
-            Object.values(currentRoutine).forEach(routine => {
-                const foundInCurrent = routine.exercises?.find(e => e.id === exId);
-                if (foundInCurrent) exName = foundInCurrent.name;
-            });
-
-            // Also check default routines if not found
-            if (exName === exId) {
-                Object.values(DEFAULT_ROUTINE).forEach(routine => {
-                    const foundInOriginal = routine.exercises?.find(e => e.id === exId);
-                    if (foundInOriginal) exName = foundInOriginal.name;
-                });
-            }
+            if (!sets || typeof sets !== 'object') return;
+            const { exName, biserieName, targetSummary } = findExerciseContext(exId, data.routineId, currentRoutine);
 
             let isFirstRowOfExercise = true;
 
             Object.keys(sets).forEach(setIdx => {
                 if (setIdx === 'note' || setIdx === 'done') return;
                 const s = sets[setIdx];
-                const noteStr = sets.note ? sets.note.replace(/"/g, '""') : '';
                 if (s.reps || s.weight || s.time || s.done) {
-                    const outDayNote = isFirstRowOfDay ? dayNoteStr : '';
-                    const outExNote = isFirstRowOfExercise ? noteStr : '';
+                    const outDayNote = isFirstRowOfDay ? dayNoteRaw : '';
+                    const outExNote = isFirstRowOfExercise ? (sets.note || '') : '';
                     const outCal = isFirstRowOfDay ? calories : '';
                     const outDur = isFirstRowOfDay ? duration : '';
                     const outAvg = isFirstRowOfDay ? avgHeartRate : '';
                     const outMax = isFirstRowOfDay ? maxHeartRate : '';
 
-                    csvRows.push(`${dateStr},"${exName}",${setIdx},${s.reps || 0},${s.weight || 0},${s.time || 0},"${outExNote}","${outDayNote}","${outCal}","${outDur}","${outAvg}","${outMax}"`);
+                    csvRows.push([
+                        dateStr,
+                        escapeCSV(biserieName),
+                        escapeCSV(exName),
+                        setIdx,
+                        s.reps || 0,
+                        s.weight || 0,
+                        s.time || 0,
+                        escapeCSV(targetSummary),
+                        escapeCSV(outExNote),
+                        escapeCSV(outDayNote),
+                        escapeCSV(outCal),
+                        escapeCSV(outDur),
+                        escapeCSV(outAvg),
+                        escapeCSV(outMax)
+                    ].join(','));
                     
                     isFirstRowOfDay = false;
                     isFirstRowOfExercise = false;
@@ -288,7 +423,7 @@ export function exportCSV(currentRoutine: RoutineConfig, startStr?: string, endS
 
     let csvContent = header + "\n" + csvRows.join("\n");
     
-    // Append routine config
+    // Append routine config (includes supersets & targets)
     csvContent += "\n---ROUTINE_CONFIG---\n";
     csvContent += JSON.stringify(currentRoutine);
     
@@ -303,7 +438,7 @@ export function exportCSV(currentRoutine: RoutineConfig, startStr?: string, endS
 
 export function exportJSON(currentRoutine: RoutineConfig, startStr?: string, endStr?: string, action: 'share' | 'download' = 'share') {
     const dataToExport: any = {
-        version: "v11.16",
+        version: "v11.17",
         routine: currentRoutine,
         master_exercises: getMasterExercises(),
         logs: {}
@@ -331,7 +466,6 @@ export function importFile(file: File, currentRoutine: RoutineConfig, onComplete
     } else if (file.name.endsWith('.csv')) {
         importCSV(file, currentRoutine, onComplete);
     } else {
-        // Fallback or guess by reading first few characters
         const reader = new FileReader();
         reader.onload = (e) => {
             const content = e.target?.result as string;
@@ -341,7 +475,7 @@ export function importFile(file: File, currentRoutine: RoutineConfig, onComplete
                 importCSV(file, currentRoutine, onComplete);
             }
         };
-        reader.readAsText(file.slice(0, 10)); // just read first 10 bytes to guess
+        reader.readAsText(file.slice(0, 10));
     }
 }
 
@@ -365,7 +499,7 @@ function importJSON(file: File, currentRoutine: RoutineConfig, onComplete: (newC
             
             if (parsed.routine) {
                 newConfig = parsed.routine;
-                localStorage.setItem('gym_routine_config', JSON.stringify(newConfig));
+                saveRoutineConfig(newConfig!);
             }
             if (parsed.master_exercises) {
                 localStorage.setItem('gym_master_exercises', JSON.stringify(parsed.master_exercises));
@@ -390,7 +524,6 @@ function importCSV(file: File, currentRoutine: RoutineConfig, onComplete: (newCo
     reader.onload = function (e) {
         const text = e.target?.result as string;
         
-        // Split text to separate logs from config
         const parts = text.split("\n---ROUTINE_CONFIG---\n");
         const logsText = parts[0];
         
@@ -410,30 +543,46 @@ function importCSV(file: File, currentRoutine: RoutineConfig, onComplete: (newCo
             return;
         }
 
+        const headerLine = lines[0] || '';
+        const hasBiserieFormat = headerLine.includes('Biserie') && headerLine.includes('Objetivo');
+
         let importedCount = 0;
 
         for (let i = 1; i < lines.length; i++) {
             const line = lines[i].trim();
             if (!line) continue;
 
-            const regex = /(".*?"|[^",\s]+)(?=\s*,|\s*$)/g;
-            let matchArray: string[] = line.match(regex) || line.split(',');
-
-            matchArray = matchArray.map(m => m.replace(/^"|"$/g, ''));
+            const matchArray = parseCSVLine(line);
 
             if (matchArray.length >= 5) {
                 const dateStr = matchArray[0];
-                const exName = matchArray[1];
-                const setIdx = parseInt(matchArray[2]);
-                const reps = parseInt(matchArray[3]);
-                const weight = parseFloat(matchArray[4]);
-                const time = matchArray.length >= 6 ? parseInt(matchArray[5]) : 0;
-                const note = matchArray.length >= 7 ? matchArray[6] : '';
-                const dayNote = matchArray.length >= 8 ? matchArray[7] : '';
-                const calories = matchArray.length >= 9 ? matchArray[8] : '';
-                const duration = matchArray.length >= 10 ? matchArray[9] : '';
-                const avgHeartRate = matchArray.length >= 11 ? matchArray[10] : '';
-                const maxHeartRate = matchArray.length >= 12 ? matchArray[11] : '';
+                const exName = hasBiserieFormat ? matchArray[2] : matchArray[1];
+                const setIdx = parseInt(hasBiserieFormat ? matchArray[3] : matchArray[2]);
+                const reps = parseInt(hasBiserieFormat ? matchArray[4] : matchArray[3]);
+                const weight = parseFloat(hasBiserieFormat ? matchArray[5] : matchArray[4]);
+                const time = hasBiserieFormat
+                    ? (matchArray.length >= 7 ? parseInt(matchArray[6]) : 0)
+                    : (matchArray.length >= 6 ? parseInt(matchArray[5]) : 0);
+                const note = hasBiserieFormat
+                    ? (matchArray.length >= 9 ? matchArray[8] : '')
+                    : (matchArray.length >= 7 ? matchArray[6] : '');
+                const dayNote = hasBiserieFormat
+                    ? (matchArray.length >= 10 ? matchArray[9] : '')
+                    : (matchArray.length >= 8 ? matchArray[7] : '');
+                const calories = hasBiserieFormat
+                    ? (matchArray.length >= 11 ? matchArray[10] : '')
+                    : (matchArray.length >= 9 ? matchArray[8] : '');
+                const duration = hasBiserieFormat
+                    ? (matchArray.length >= 12 ? matchArray[11] : '')
+                    : (matchArray.length >= 10 ? matchArray[9] : '');
+                const avgHeartRate = hasBiserieFormat
+                    ? (matchArray.length >= 13 ? matchArray[12] : '')
+                    : (matchArray.length >= 11 ? matchArray[10] : '');
+                const maxHeartRate = hasBiserieFormat
+                    ? (matchArray.length >= 14 ? matchArray[13] : '')
+                    : (matchArray.length >= 12 ? matchArray[11] : '');
+
+                if (!dateStr || !exName || isNaN(setIdx)) continue;
 
                 let exId: string | null = null;
                 Object.values(currentRoutine).forEach(routine => {
@@ -486,9 +635,18 @@ function importCSV(file: File, currentRoutine: RoutineConfig, onComplete: (newCo
         if (configText) {
             try {
                 newConfig = JSON.parse(configText.trim());
-                localStorage.setItem('gym_routine_config', JSON.stringify(newConfig));
+                saveRoutineConfig(newConfig!);
             } catch (err) {
                 console.warn("No se pudo parsear la configuración de la rutina", err);
+            }
+        }
+
+        if (masterText) {
+            try {
+                const parsedMaster = JSON.parse(masterText.trim());
+                localStorage.setItem('gym_master_exercises', JSON.stringify(parsedMaster));
+            } catch (err) {
+                console.warn("No se pudo parsear el maestro de ejercicios", err);
             }
         }
 

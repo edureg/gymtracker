@@ -7,11 +7,13 @@ import MasterManagerModal from './components/MasterManagerModal';
 import { runDeepCleanDeduplication } from './utils/dedup';
 import { exportCSV, exportJSON, exportPDF, importFile, exportRoutinesPDF, exportMasterDict } from './utils/exportImport';
 import ExerciseCard from './components/ExerciseCard';
+import BiserieCard from './components/BiserieCard';
 import TimerPanel from './components/TimerPanel';
 import AddExerciseModal from './components/AddExerciseModal';
 import RoutineHistoryModal from './components/RoutineHistoryModal';
 import EditRoutineView from './components/EditRoutineView';
 import CalendarView from './components/CalendarView';
+import { groupExercisesIntoBlocks } from './utils/routineBlocks';
 
 const SortableRoutineItem: React.FC<{ routine: Routine, onEdit: () => void, onStart: () => void }> = ({ routine, onEdit, onStart }) => {
     const controls = useDragControls();
@@ -340,6 +342,7 @@ export default function App() {
       importFile(file, routineConfig, (newConfig) => {
         if (newConfig) {
           setRoutineConfig(newConfig);
+          saveRoutineConfig(newConfig);
         }
         setRefreshTrigger(prev => prev + 1);
         if (fileInputRef.current) fileInputRef.current.value = '';
@@ -592,6 +595,26 @@ export default function App() {
     saveDayLog(currentDate, newDayLog);
   };
 
+  const updateExerciseTarget = (routineId: string | null | undefined, exId: string, targetWeight: string, targetReps: string) => {
+    if (!routineId || !routineConfig[routineId]) return;
+    const routine = routineConfig[routineId];
+    const newExercises = routine.exercises.map(ex => {
+      if (ex.id !== exId) return ex;
+      const updated: Exercise = { ...ex };
+      if (targetWeight) updated.targetWeight = targetWeight;
+      else delete updated.targetWeight;
+      if (targetReps) updated.targetReps = targetReps;
+      else delete updated.targetReps;
+      return updated;
+    });
+    const newConfig = {
+      ...routineConfig,
+      [routineId]: { ...routine, exercises: newExercises }
+    };
+    setRoutineConfig(newConfig);
+    saveRoutineConfig(newConfig);
+  };
+
   const dateOptions: Intl.DateTimeFormatOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
   let dateStr = currentDate.toLocaleDateString('es-AR', dateOptions);
   dateStr = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
@@ -611,7 +634,7 @@ export default function App() {
               <h1 className="text-3xl font-black tracking-tight bg-gradient-to-br from-white via-gray-200 to-gray-500 bg-clip-text text-transparent mb-1">
                 Gym Tracker
               </h1>
-              <div className="text-xs font-semibold text-emerald-400/80 tracking-widest uppercase">Version 11.16</div>
+              <div className="text-xs font-semibold text-emerald-400/80 tracking-widest uppercase">Version 11.17</div>
             </div>
             <div className="flex gap-2">
               <button 
@@ -728,7 +751,12 @@ export default function App() {
                            <div className="flex justify-between items-start">
                               <div>
                                   <h4 className="text-xl font-bold text-white group-hover:text-emerald-400 transition-colors mb-1">{routine.title}</h4>
-                                  <div className="text-sm text-gray-500">{routine.exercises?.filter(e => e.isActive !== false).length || 0} ejercicios</div>
+                                  <div className="text-sm text-gray-500 tabular-nums">
+                                    {routine.exercises?.filter(e => e.isActive !== false).length || 0} ejercicios
+                                    {routine.supersets && Object.keys(routine.supersets).length > 0 && (
+                                      <span> · {Object.keys(routine.supersets).length} {Object.keys(routine.supersets).length === 1 ? 'biserie' : 'biseries'}</span>
+                                    )}
+                                  </div>
                               </div>
                               <button 
                                   onClick={() => {
@@ -994,25 +1022,47 @@ export default function App() {
             <p className="text-lg">No hay ejercicios programados para hoy.</p>
           </div>
         ) : (
-          activeExercises.map((ex, idx) => (
-            <ExerciseCard
-              key={ex.id}
-              exercise={ex}
-              dayLog={dayLog[ex.id] || {}}
-              currentDate={currentDate}
-              isEditMode={false}
-              onUpdateLog={(setIdx, field, val) => updateExerciseLog(ex.id, setIdx, field, val)}
-              onToggleSet={(setIdx) => toggleSetDone(ex.id, setIdx)}
-              onUpdateNote={(note) => updateSessionNote(ex.id, note)}
-              onMoveUp={() => {}}
-              onMoveDown={() => {}}
-              canMoveUp={false}
-              canMoveDown={false}
-              onDeactivate={() => {}}
-              onChangeSets={() => {}}
-              onUpdateExerciseNotes={() => {}}
-            />
-          ))
+          groupExercisesIntoBlocks(activeExercises, currentDayRoutine?.supersets).map((block) =>
+            block.type === 'superset' ? (
+              <BiserieCard
+                key={`biserie_${block.superset.id}`}
+                superset={block.superset}
+                exercises={block.exercises}
+                dayLog={dayLog}
+                currentDate={currentDate}
+                onUpdateLog={updateExerciseLog}
+                onToggleSet={toggleSetDone}
+                onUpdateNote={updateSessionNote}
+                onUpdateTarget={(exId, targetWeight, targetReps) =>
+                  updateExerciseTarget(activeRoutineId, exId, targetWeight, targetReps)
+                }
+              />
+            ) : (
+              <ExerciseCard
+                key={block.exercise.id}
+                exercise={block.exercise}
+                dayLog={dayLog[block.exercise.id] || {}}
+                currentDate={currentDate}
+                isEditMode={false}
+                onUpdateLog={(setIdx, field, val) => updateExerciseLog(block.exercise.id, setIdx, field, val)}
+                onToggleSet={(setIdx) => toggleSetDone(block.exercise.id, setIdx)}
+                onUpdateNote={(note) => updateSessionNote(block.exercise.id, note)}
+                onUpdateTarget={
+                  activeRoutineId !== 'historic_imported'
+                    ? (targetWeight, targetReps) =>
+                        updateExerciseTarget(activeRoutineId, block.exercise.id, targetWeight, targetReps)
+                    : undefined
+                }
+                onMoveUp={() => {}}
+                onMoveDown={() => {}}
+                canMoveUp={false}
+                canMoveDown={false}
+                onDeactivate={() => {}}
+                onChangeSets={() => {}}
+                onUpdateExerciseNotes={() => {}}
+              />
+            )
+          )
         )}
       </div>
 

@@ -1,3 +1,10 @@
+export type SupersetGroup = {
+  id: string;
+  name: string;
+  rounds: number;
+  notes?: string;
+};
+
 export type Exercise = {
   id: string;
   name: string;
@@ -6,12 +13,16 @@ export type Exercise = {
   rephs?: string;
   hasTime?: boolean;
   isActive?: boolean;
+  supersetId?: string;
+  targetWeight?: string;
+  targetReps?: string;
 };
 
 export type Routine = {
   id: string;
   title: string;
   exercises: Exercise[];
+  supersets?: Record<string, SupersetGroup>;
 };
 
 export type RoutineConfig = Record<string, Routine>;

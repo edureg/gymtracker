@@ -1,0 +1,6 @@
+{
+  "summary": "Plan de implementación para agregar soporte de Biseries/Circuito por rondas sincronizadas, objetivos de peso/repeticiones por ejercicio editables en plantilla y entrenamiento, y actualización completa de exportaciones (PDF, CSV, JSON) y respaldo sin pérdida de datos históricos.",
+  "updatedAt": "2026-11-17T12:07:06.183648066Z",
+  "requestFeedback": true,
+  "userFacing": true
+}

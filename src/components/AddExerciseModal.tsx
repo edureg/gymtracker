@@ -5,14 +5,28 @@ interface Props {
   onClose: () => void;
   onAdd: (ex: Exercise) => void;
   exerciseBank: Exercise[];
+  fixedSets?: number;
+  supersetId?: string;
+  supersetName?: string;
+  activeExerciseIds?: string[];
 }
 
-export default function AddExerciseModal({ onClose, onAdd, exerciseBank }: Props) {
+export default function AddExerciseModal({
+  onClose,
+  onAdd,
+  exerciseBank,
+  fixedSets,
+  supersetId,
+  supersetName,
+  activeExerciseIds = []
+}: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [notes, setNotes] = useState('');
-  const [sets, setSets] = useState(4);
+  const [sets, setSets] = useState(fixedSets ?? 4);
   const [hasTime, setHasTime] = useState(false);
+  const [targetWeight, setTargetWeight] = useState('');
+  const [targetReps, setTargetReps] = useState('');
 
   const handleSelectFromBank = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const id = e.target.value;
@@ -20,8 +34,10 @@ export default function AddExerciseModal({ onClose, onAdd, exerciseBank }: Props
       setSelectedId(null);
       setName('');
       setNotes('');
-      setSets(4);
+      setSets(fixedSets ?? 4);
       setHasTime(false);
+      setTargetWeight('');
+      setTargetReps('');
       return;
     }
     const ex = exerciseBank.find(x => x.id === id);
@@ -29,8 +45,10 @@ export default function AddExerciseModal({ onClose, onAdd, exerciseBank }: Props
       setSelectedId(ex.id);
       setName(ex.name);
       setNotes(ex.notes || '');
-      setSets(ex.sets);
+      setSets(fixedSets ?? ex.sets);
       setHasTime(ex.hasTime || false);
+      setTargetWeight(ex.targetWeight || '');
+      setTargetReps(ex.targetReps || '');
     }
   };
 
@@ -39,29 +57,35 @@ export default function AddExerciseModal({ onClose, onAdd, exerciseBank }: Props
       alert("El nombre del ejercicio es obligatorio.");
       return;
     }
-    
+
     let finalId = selectedId;
     let finalNotes = notes.trim();
-    
-    // Auto-match by exact name if no dropdown was used
+
     if (!finalId) {
-        const existing = exerciseBank.find(x => x.name.trim().toLowerCase() === name.trim().toLowerCase());
-        if (existing) {
-            finalId = existing.id;
-            // Only inherit notes if they didn't type anything new
-            if (!finalNotes) {
-                finalNotes = existing.notes || '';
-            }
+      const existing = exerciseBank.find(x => x.name.trim().toLowerCase() === name.trim().toLowerCase());
+      if (existing) {
+        finalId = existing.id;
+        if (!finalNotes) {
+          finalNotes = existing.notes || '';
         }
+      }
     }
-    
+
+    if (finalId && activeExerciseIds.includes(finalId)) {
+      alert("Este ejercicio ya está activo en esta rutina. Si querés pasarlo a una biserie, usá el botón 'Mover a biserie' en su tarjeta.");
+      return;
+    }
+
     onAdd({
       id: finalId || 'custom_' + Date.now(),
       name: name.trim(),
       notes: finalNotes,
-      sets,
+      sets: fixedSets ?? sets,
       hasTime,
-      isActive: true
+      isActive: true,
+      ...(supersetId ? { supersetId } : {}),
+      ...(targetWeight.trim() ? { targetWeight: targetWeight.trim() } : {}),
+      ...(targetReps.trim() ? { targetReps: targetReps.trim() } : {})
     });
     onClose();
   };
@@ -70,76 +94,124 @@ export default function AddExerciseModal({ onClose, onAdd, exerciseBank }: Props
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[1000] p-4">
-      <div className="bg-slate-900 border border-white/10 rounded-2xl p-6 w-full max-w-[400px] max-h-[90vh] overflow-y-auto">
-        <h3 className="text-xl font-semibold text-emerald-400 mb-5">Añadir Ejercicio</h3>
-        
+      <div className="bg-slate-900 border border-white/10 rounded-2xl p-6 w-full max-w-[420px] max-h-[90vh] overflow-y-auto">
+        <h3 className="text-xl font-semibold text-emerald-400 mb-1">
+          {supersetName ? `Añadir a ${supersetName}` : 'Añadir Ejercicio'}
+        </h3>
+        {supersetName && (
+          <p className="text-xs text-gray-400 mb-4">
+            Se sincronizará automáticamente con las {fixedSets} rondas de esta biserie.
+          </p>
+        )}
+
         {sortedBank.length > 0 && (
-          <div className="mb-6 p-4 bg-emerald-400/10 border border-emerald-400/20 rounded-xl">
+          <div className="mb-5 mt-3 p-4 bg-emerald-400/10 border border-emerald-400/20 rounded-xl">
             <label className="block text-sm text-emerald-400 mb-2 font-semibold">Repositorio (Ejercicios Previos)</label>
-            <select 
-              className="w-full bg-black/50 border border-emerald-400/30 rounded-lg p-2.5 text-white focus:outline-none focus:border-emerald-400"
+            <select
+              className="w-full bg-black/50 border border-emerald-400/30 rounded-lg p-2.5 text-white focus:outline-none focus:border-emerald-400 min-h-[44px]"
               onChange={handleSelectFromBank}
               value={selectedId || ''}
             >
               <option value="">-- Crear nuevo ejercicio --</option>
-              {sortedBank.map(ex => (
-                <option key={ex.id} value={ex.id}>{ex.name}</option>
-              ))}
+              {sortedBank.map(ex => {
+                const alreadyActive = activeExerciseIds.includes(ex.id);
+                return (
+                  <option key={ex.id} value={ex.id} disabled={alreadyActive}>
+                    {ex.name}{alreadyActive ? ' (Ya en rutina)' : ''}
+                  </option>
+                );
+              })}
             </select>
-            <p className="text-xs text-emerald-400/70 mt-2">Selecciona un ejercicio para autocompletar y mantener su historial.</p>
+            <p className="text-xs text-emerald-400/70 mt-2">Seleccioná un ejercicio para autocompletar sus notas y mantener su historial.</p>
           </div>
         )}
-        
+
         <div className="space-y-4">
           <div>
             <label className="block text-sm text-gray-400 mb-1.5">Nombre del Ejercicio *</label>
-            <input 
-              type="text" 
+            <input
+              type="text"
               value={name}
               onChange={e => setName(e.target.value)}
-              placeholder="Ej. Sentadillas"
-              className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:outline-none focus:border-emerald-400"
+              placeholder="Ej. Extensión de Tríceps Polea Alta"
+              className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:outline-none focus:border-emerald-400 min-h-[44px]"
             />
           </div>
-          
+
           <div>
-            <label className="block text-sm text-gray-400 mb-1.5">Aclaraciones (Opcional)</label>
-            <input 
-              type="text" 
+            <label className="block text-sm text-gray-400 mb-1.5">Aclaraciones técnicas (Opcional)</label>
+            <input
+              type="text"
               value={notes}
               onChange={e => setNotes(e.target.value)}
-              placeholder="Ej. 4 series de 10 reps. Bajando lento."
-              className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:outline-none focus:border-emerald-400"
+              placeholder="Ej. Polea alta, codos pegados al cuerpo"
+              className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:outline-none focus:border-emerald-400 min-h-[44px]"
             />
           </div>
-          
-          <div>
-            <label className="block text-sm text-gray-400 mb-1.5">Cantidad de Series *</label>
-            <input 
-              type="number" 
-              value={sets}
-              onChange={e => setSets(parseInt(e.target.value) || 1)}
-              min="1"
-              className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:outline-none focus:border-emerald-400"
-            />
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-gray-400 mb-1.5">Peso objetivo kg (Opc.)</label>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={targetWeight}
+                onChange={e => setTargetWeight(e.target.value)}
+                placeholder="Ej. 25"
+                className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white tabular-nums focus:outline-none focus:border-emerald-400 min-h-[44px]"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-400 mb-1.5">Reps objetivo (Opc.)</label>
+              <input
+                type="text"
+                value={targetReps}
+                onChange={e => setTargetReps(e.target.value)}
+                placeholder="Ej. 10-12"
+                className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white tabular-nums focus:outline-none focus:border-emerald-400 min-h-[44px]"
+              />
+            </div>
           </div>
-          
-          <label className="flex items-center gap-3 cursor-pointer pt-2">
-            <input 
-              type="checkbox" 
+
+          {fixedSets !== undefined ? (
+            <div className="text-sm text-gray-300 bg-black/30 border border-white/10 rounded-lg px-3 py-2.5 tabular-nums">
+              Rondas sincronizadas: <span className="text-emerald-400 font-semibold">{fixedSets}</span>
+            </div>
+          ) : (
+            <div>
+              <label className="block text-sm text-gray-400 mb-1.5">Cantidad de Series *</label>
+              <input
+                type="number"
+                value={sets}
+                onChange={e => setSets(Math.max(1, parseInt(e.target.value) || 1))}
+                min="1"
+                className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white tabular-nums focus:outline-none focus:border-emerald-400 min-h-[44px]"
+              />
+            </div>
+          )}
+
+          <label className="flex items-center gap-3 cursor-pointer pt-1 min-h-[44px]">
+            <input
+              type="checkbox"
               checked={hasTime}
               onChange={e => setHasTime(e.target.checked)}
               className="w-5 h-5 accent-emerald-400"
             />
-            <span className="text-gray-300">Registrar Tiempo en este ejercicio</span>
+            <span className="text-gray-300 text-sm">Registrar Tiempo en este ejercicio</span>
           </label>
         </div>
-        
-        <div className="flex justify-end gap-3 mt-8">
-          <button onClick={onClose} className="px-4 py-2 rounded-lg border border-gray-500 text-gray-400 hover:bg-white/5">
+
+        <div className="flex justify-end gap-3 mt-7">
+          <button
+            onClick={onClose}
+            className="px-4 py-2.5 min-h-[44px] rounded-lg border border-gray-600 text-gray-300 hover:bg-white/5 transition-colors"
+          >
             Cancelar
           </button>
-          <button onClick={handleAdd} className="px-4 py-2 rounded-lg bg-emerald-400 text-black font-semibold hover:brightness-110">
+          <button
+            onClick={handleAdd}
+            className="px-5 py-2.5 min-h-[44px] rounded-lg bg-emerald-400 text-black font-semibold hover:brightness-110 transition"
+          >
             Añadir
           </button>
         </div>
