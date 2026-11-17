@@ -30,7 +30,12 @@ const SortableRoutineItem: React.FC<{ routine: Routine, onEdit: () => void, onSt
                     <div className="flex justify-between items-start">
                         <div>
                             <h4 className="text-xl font-bold text-white group-hover:text-emerald-400 transition-colors mb-1">{routine.title}</h4>
-                            <div className="text-sm text-gray-500">{routine.exercises?.filter(e => e.isActive !== false).length || 0} ejercicios</div>
+                            <div className="text-sm text-gray-500 tabular-nums">
+                              {routine.exercises?.filter(e => e.isActive !== false).length || 0} ejercicios
+                              {routine.supersets && Object.keys(routine.supersets).length > 0 && (
+                                <span> · {Object.keys(routine.supersets).length} {Object.keys(routine.supersets).length === 1 ? 'superserie' : 'superseries'}</span>
+                              )}
+                            </div>
                         </div>
                         <button onClick={onEdit} className="bg-black/40 text-gray-400 hover:text-white p-2.5 rounded-xl border border-white/5 hover:border-white/20 transition-all cursor-pointer">
                             <PenLine className="w-4 h-4" />
@@ -634,7 +639,7 @@ export default function App() {
               <h1 className="text-3xl font-black tracking-tight bg-gradient-to-br from-white via-gray-200 to-gray-500 bg-clip-text text-transparent mb-1">
                 Gym Tracker
               </h1>
-              <div className="text-xs font-semibold text-emerald-400/80 tracking-widest uppercase">Version 11.17</div>
+              <div className="text-xs font-semibold text-emerald-400/80 tracking-widest uppercase">Version 12.0</div>
             </div>
             <div className="flex gap-2">
               <button 
@@ -754,7 +759,7 @@ export default function App() {
                                   <div className="text-sm text-gray-500 tabular-nums">
                                     {routine.exercises?.filter(e => e.isActive !== false).length || 0} ejercicios
                                     {routine.supersets && Object.keys(routine.supersets).length > 0 && (
-                                      <span> · {Object.keys(routine.supersets).length} {Object.keys(routine.supersets).length === 1 ? 'biserie' : 'biseries'}</span>
+                                      <span> · {Object.keys(routine.supersets).length} {Object.keys(routine.supersets).length === 1 ? 'superserie' : 'superseries'}</span>
                                     )}
                                   </div>
                               </div>

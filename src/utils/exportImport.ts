@@ -85,7 +85,7 @@ function findExerciseContext(exId: string, routineId: string | undefined, curren
         const r = currentRoutine[routineId];
         matchedEx = r.exercises?.find(e => e.id === exId);
         if (matchedEx?.supersetId && r.supersets?.[matchedEx.supersetId]) {
-            biserieName = r.supersets[matchedEx.supersetId].name || 'Biserie';
+            biserieName = r.supersets[matchedEx.supersetId].name || 'Superserie';
         }
     }
 
@@ -95,7 +95,7 @@ function findExerciseContext(exId: string, routineId: string | undefined, curren
             if (found) {
                 matchedEx = found;
                 if (found.supersetId && r.supersets?.[found.supersetId]) {
-                    biserieName = r.supersets[found.supersetId].name || 'Biserie';
+                    biserieName = r.supersets[found.supersetId].name || 'Superserie';
                 }
                 break;
             }
@@ -156,8 +156,11 @@ export function exportRoutinesPDF(currentRoutine: RoutineConfig, action: 'share'
         blocks.forEach(block => {
             if (block.type === 'superset') {
                 const { superset, exercises } = block;
-                const roundsLabel = `${superset.rounds} ${superset.rounds === 1 ? 'ronda' : 'rondas'}`;
-                const headerText = `${superset.name || 'Biserie'} — ${roundsLabel}${superset.notes ? ` | ${superset.notes}` : ''}`;
+                const effectiveRounds = exercises.length > 0
+                    ? Math.max(...exercises.map(e => Math.max(1, e.sets || 1)))
+                    : Math.max(1, superset.rounds || 1);
+                const roundsLabel = `Hasta ${effectiveRounds} ${effectiveRounds === 1 ? 'ronda' : 'rondas'}`;
+                const headerText = `${superset.name || 'Superserie'} — ${roundsLabel}${superset.notes ? ` | ${superset.notes}` : ''}`;
 
                 tableData.push([
                     {
@@ -347,7 +350,7 @@ export function exportPDF(currentRoutine: RoutineConfig, startStr?: string, endS
 
 export function exportCSV(currentRoutine: RoutineConfig, startStr?: string, endStr?: string, action: 'share' | 'download' = 'share') {
     let csvRows: string[] = [];
-    const header = "Fecha,Biserie,Ejercicio,Serie,Repeticiones,Peso (kg),Tiempo (s),Objetivo,Notas,Nota General,Calorías,Duración,FC Promedio,FC Máxima";
+    const header = "Fecha,Superserie,Ejercicio,Serie,Repeticiones,Peso (kg),Tiempo (s),Objetivo,Notas,Nota General,Calorías,Duración,FC Promedio,FC Máxima";
 
     let keys = Object.keys(localStorage)
         .filter(k => k.startsWith('gym_log_'))
@@ -438,7 +441,7 @@ export function exportCSV(currentRoutine: RoutineConfig, startStr?: string, endS
 
 export function exportJSON(currentRoutine: RoutineConfig, startStr?: string, endStr?: string, action: 'share' | 'download' = 'share') {
     const dataToExport: any = {
-        version: "v11.17",
+        version: "v12.0",
         routine: currentRoutine,
         master_exercises: getMasterExercises(),
         logs: {}
@@ -544,7 +547,7 @@ function importCSV(file: File, currentRoutine: RoutineConfig, onComplete: (newCo
         }
 
         const headerLine = lines[0] || '';
-        const hasBiserieFormat = headerLine.includes('Biserie') && headerLine.includes('Objetivo');
+        const hasBiserieFormat = (headerLine.includes('Superserie') || headerLine.includes('Biserie')) && headerLine.includes('Objetivo');
 
         let importedCount = 0;
 

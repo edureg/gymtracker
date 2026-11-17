@@ -5,7 +5,7 @@ interface Props {
   onClose: () => void;
   onAdd: (ex: Exercise) => void;
   exerciseBank: Exercise[];
-  fixedSets?: number;
+  defaultSets?: number;
   supersetId?: string;
   supersetName?: string;
   activeExerciseIds?: string[];
@@ -15,7 +15,7 @@ export default function AddExerciseModal({
   onClose,
   onAdd,
   exerciseBank,
-  fixedSets,
+  defaultSets,
   supersetId,
   supersetName,
   activeExerciseIds = []
@@ -23,7 +23,7 @@ export default function AddExerciseModal({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [notes, setNotes] = useState('');
-  const [sets, setSets] = useState(fixedSets ?? 4);
+  const [sets, setSets] = useState(defaultSets ?? 4);
   const [hasTime, setHasTime] = useState(false);
   const [targetWeight, setTargetWeight] = useState('');
   const [targetReps, setTargetReps] = useState('');
@@ -34,7 +34,7 @@ export default function AddExerciseModal({
       setSelectedId(null);
       setName('');
       setNotes('');
-      setSets(fixedSets ?? 4);
+      setSets(defaultSets ?? 4);
       setHasTime(false);
       setTargetWeight('');
       setTargetReps('');
@@ -45,7 +45,7 @@ export default function AddExerciseModal({
       setSelectedId(ex.id);
       setName(ex.name);
       setNotes(ex.notes || '');
-      setSets(fixedSets ?? ex.sets);
+      setSets(defaultSets ?? ex.sets);
       setHasTime(ex.hasTime || false);
       setTargetWeight(ex.targetWeight || '');
       setTargetReps(ex.targetReps || '');
@@ -72,7 +72,7 @@ export default function AddExerciseModal({
     }
 
     if (finalId && activeExerciseIds.includes(finalId)) {
-      alert("Este ejercicio ya está activo en esta rutina. Si querés pasarlo a una biserie, usá el botón 'Mover a biserie' en su tarjeta.");
+      alert("Este ejercicio ya está activo en esta rutina. Si querés pasarlo a una superserie, usá el selector 'Meter en superserie...' en su tarjeta.");
       return;
     }
 
@@ -80,7 +80,7 @@ export default function AddExerciseModal({
       id: finalId || 'custom_' + Date.now(),
       name: name.trim(),
       notes: finalNotes,
-      sets: fixedSets ?? sets,
+      sets: Math.max(1, sets),
       hasTime,
       isActive: true,
       ...(supersetId ? { supersetId } : {}),
@@ -100,7 +100,7 @@ export default function AddExerciseModal({
         </h3>
         {supersetName && (
           <p className="text-xs text-gray-400 mb-4">
-            Se sincronizará automáticamente con las {fixedSets} rondas de esta biserie.
+            Se inicia con {defaultSets ?? 3} rondas sugeridas; podés ajustarle sus rondas por separado si hace menos o más que el resto.
           </p>
         )}
 
@@ -173,22 +173,18 @@ export default function AddExerciseModal({
             </div>
           </div>
 
-          {fixedSets !== undefined ? (
-            <div className="text-sm text-gray-300 bg-black/30 border border-white/10 rounded-lg px-3 py-2.5 tabular-nums">
-              Rondas sincronizadas: <span className="text-emerald-400 font-semibold">{fixedSets}</span>
-            </div>
-          ) : (
-            <div>
-              <label className="block text-sm text-gray-400 mb-1.5">Cantidad de Series *</label>
-              <input
-                type="number"
-                value={sets}
-                onChange={e => setSets(Math.max(1, parseInt(e.target.value) || 1))}
-                min="1"
-                className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white tabular-nums focus:outline-none focus:border-emerald-400 min-h-[44px]"
-              />
-            </div>
-          )}
+          <div>
+            <label className="block text-sm text-gray-400 mb-1.5">
+              {supersetName ? 'Cantidad de Rondas / Series para este ejercicio *' : 'Cantidad de Series *'}
+            </label>
+            <input
+              type="number"
+              value={sets}
+              onChange={e => setSets(Math.max(1, parseInt(e.target.value) || 1))}
+              min="1"
+              className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-white tabular-nums focus:outline-none focus:border-emerald-400 min-h-[44px]"
+            />
+          </div>
 
           <label className="flex items-center gap-3 cursor-pointer pt-1 min-h-[44px]">
             <input

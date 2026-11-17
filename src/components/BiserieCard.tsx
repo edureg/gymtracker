@@ -28,7 +28,9 @@ export default function BiserieCard({
   onUpdateNote,
   onUpdateTarget
 }: Props) {
-  const rounds = Math.max(1, superset.rounds || exercises[0]?.sets || 3);
+  const totalRounds = exercises.length > 0
+    ? Math.max(...exercises.map(ex => Math.max(1, ex.sets || 1)))
+    : Math.max(1, superset.rounds || 3);
 
   const [editingTargetExId, setEditingTargetExId] = useState<string | null>(null);
   const [draftWeight, setDraftWeight] = useState('');
@@ -65,12 +67,12 @@ export default function BiserieCard({
 
   return (
     <div className="bg-slate-900/70 rounded-2xl p-4 sm:p-5 border border-emerald-400/25 backdrop-blur-md">
-      {/* Cabecera de Biserie */}
+      {/* Cabecera de Superserie */}
       <div className="pb-4 border-b border-white/10">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h3 className="text-lg font-bold text-emerald-400">{superset.name || 'Biserie'}</h3>
+          <h3 className="text-lg font-bold text-emerald-400">{superset.name || 'Superserie'}</h3>
           <div className="text-xs text-gray-400 tabular-nums">
-            {rounds} {rounds === 1 ? 'ronda' : 'rondas'} · {exercises.length} ejercicios
+            {totalRounds} {totalRounds === 1 ? 'ronda' : 'rondas'} · {exercises.length} ejercicios
           </div>
         </div>
         {superset.notes && (
@@ -78,7 +80,7 @@ export default function BiserieCard({
         )}
       </div>
 
-      {/* Ficha de ejercicios integrantes: notas técnicas, última vez, objetivo editable y nota del día */}
+      {/* Ficha de ejercicios integrantes: notas técnicas, rondas propias, última vez, objetivo editable y nota del día */}
       <div className="py-4 space-y-4 border-b border-white/10">
         {exercises.map((ex, idx) => {
           const letter = LETTERS[idx] || `${idx + 1}`;
@@ -87,12 +89,18 @@ export default function BiserieCard({
           const sessionNote = exDayLog.note || '';
           const targetSummary = formatTargetSummary(ex);
           const isEditingThisTarget = editingTargetExId === ex.id;
+          const exRounds = Math.max(1, ex.sets || 1);
 
           return (
             <div key={ex.id} className={idx > 0 ? 'pt-3 border-t border-white/5' : ''}>
-              <div className="text-sm font-semibold text-white">
-                <span className="text-emerald-400 mr-1.5">{letter} ·</span>
-                {ex.name}
+              <div className="flex items-baseline justify-between gap-2">
+                <div className="text-sm font-semibold text-white">
+                  <span className="text-emerald-400 mr-1.5">{letter} ·</span>
+                  {ex.name}
+                </div>
+                <span className="text-xs text-gray-400 shrink-0 tabular-nums">
+                  {exRounds} {exRounds === 1 ? 'ronda' : 'rondas'}
+                </span>
               </div>
 
               {ex.notes && (
@@ -193,17 +201,23 @@ export default function BiserieCard({
         })}
       </div>
 
-      {/* Rondas agrupadas */}
+      {/* Rondas agrupadas (cada ronda incluye solo los ejercicios con series suficientes) */}
       <div className="pt-4 space-y-5">
-        {Array.from({ length: rounds }, (_, rIdx) => {
+        {Array.from({ length: totalRounds }, (_, rIdx) => {
           const roundNumber = rIdx + 1;
-          const allRoundDone = exercises.length > 0 && exercises.every(ex => !!dayLog[ex.id]?.[roundNumber]?.done);
+          const exercisesInRound = exercises
+            .map((ex, originalIdx) => ({ ex, letter: LETTERS[originalIdx] || `${originalIdx + 1}` }))
+            .filter(({ ex }) => Math.max(1, ex.sets || 1) >= roundNumber);
+
+          if (exercisesInRound.length === 0) return null;
+
+          const allRoundDone = exercisesInRound.every(({ ex }) => !!dayLog[ex.id]?.[roundNumber]?.done);
 
           return (
             <div key={roundNumber} className={rIdx > 0 ? 'pt-4 border-t border-white/10' : ''}>
               <div className="flex items-center justify-between mb-3">
                 <span className={`text-sm font-bold tracking-wide tabular-nums ${allRoundDone ? 'text-emerald-400' : 'text-gray-200'}`}>
-                  Ronda {roundNumber} de {rounds}
+                  Ronda {roundNumber} de {totalRounds}
                 </span>
                 {allRoundDone && (
                   <span className="text-xs text-emerald-400 font-medium flex items-center gap-1">
@@ -213,8 +227,7 @@ export default function BiserieCard({
               </div>
 
               <div className="space-y-3">
-                {exercises.map((ex, exIdx) => {
-                  const letter = LETTERS[exIdx] || `${exIdx + 1}`;
+                {exercisesInRound.map(({ ex, letter }) => {
                   const exLog = dayLog[ex.id] || {};
                   const setLog = exLog[roundNumber] || {};
                   const isDone = !!setLog.done;

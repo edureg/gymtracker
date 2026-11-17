@@ -9,7 +9,6 @@ import {
   Unlink,
   ArrowUp,
   ArrowDown,
-  Target,
   X
 } from 'lucide-react';
 import { Routine, Exercise, SupersetGroup } from '../types';
@@ -75,25 +74,21 @@ const SortableSingleItem: React.FC<SortableSingleProps> = ({
           />
 
           <div className="grid grid-cols-2 gap-2">
-            <div className="relative">
-              <input
-                type="text"
-                inputMode="decimal"
-                value={ex.targetWeight || ''}
-                onChange={(e) => onUpdate(ex.id, { targetWeight: e.target.value })}
-                placeholder="Peso obj. (kg)"
-                className="w-full bg-black/40 border border-white/10 rounded-lg py-1.5 px-2.5 text-xs text-amber-200 placeholder:text-gray-500 tabular-nums focus:outline-none focus:border-amber-400/50"
-              />
-            </div>
-            <div className="relative">
-              <input
-                type="text"
-                value={ex.targetReps || ''}
-                onChange={(e) => onUpdate(ex.id, { targetReps: e.target.value })}
-                placeholder="Reps obj. (ej. 10-12)"
-                className="w-full bg-black/40 border border-white/10 rounded-lg py-1.5 px-2.5 text-xs text-amber-200 placeholder:text-gray-500 tabular-nums focus:outline-none focus:border-amber-400/50"
-              />
-            </div>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={ex.targetWeight || ''}
+              onChange={(e) => onUpdate(ex.id, { targetWeight: e.target.value })}
+              placeholder="Peso obj. (kg)"
+              className="w-full bg-black/40 border border-white/10 rounded-lg py-1.5 px-2.5 text-xs text-amber-200 placeholder:text-gray-500 tabular-nums focus:outline-none focus:border-amber-400/50"
+            />
+            <input
+              type="text"
+              value={ex.targetReps || ''}
+              onChange={(e) => onUpdate(ex.id, { targetReps: e.target.value })}
+              placeholder="Reps obj. (ej. 10-12)"
+              className="w-full bg-black/40 border border-white/10 rounded-lg py-1.5 px-2.5 text-xs text-amber-200 placeholder:text-gray-500 tabular-nums focus:outline-none focus:border-amber-400/50"
+            />
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
@@ -124,7 +119,7 @@ const SortableSingleItem: React.FC<SortableSingleProps> = ({
                 }}
                 className="bg-black/40 border border-emerald-400/25 text-emerald-400 text-xs rounded-lg px-2.5 py-2 focus:outline-none focus:border-emerald-400 cursor-pointer"
               >
-                <option value="">Meter en biserie...</option>
+                <option value="">Meter en superserie...</option>
                 {supersetsList.map(s => (
                   <option key={s.id} value={s.id} className="bg-slate-900 text-white">
                     {s.name} ({s.rounds} rondas)
@@ -164,16 +159,19 @@ const SortableSupersetItem: React.FC<SortableSupersetProps> = ({
 }) => {
   const controls = useDragControls();
   const { superset, exercises } = block;
+  const maxExerciseRounds = exercises.length > 0
+    ? Math.max(...exercises.map(ex => Math.max(1, ex.sets || 1)))
+    : superset.rounds;
 
   return (
     <Reorder.Item value={block} dragListener={false} dragControls={controls}>
       <div className="bg-slate-900/80 border border-emerald-400/30 p-4 rounded-2xl space-y-4">
-        {/* Cabecera Biserie */}
+        {/* Cabecera Superserie */}
         <div className="flex items-start gap-2.5">
           <div
             onPointerDown={(e) => controls.start(e)}
             className="flex flex-col items-center justify-center cursor-grab active:cursor-grabbing opacity-60 hover:opacity-100 p-2 touch-none min-w-[40px] mt-1"
-            title="Arrastrar biserie completa"
+            title="Arrastrar superserie completa"
           >
             <GripVertical className="w-5 h-5 text-emerald-400" />
           </div>
@@ -186,7 +184,7 @@ const SortableSupersetItem: React.FC<SortableSupersetProps> = ({
                   type="text"
                   value={superset.name}
                   onChange={(e) => onUpdateSuperset(superset.id, { name: e.target.value })}
-                  placeholder="Ej. Biserie 1"
+                  placeholder="Ej. Superserie 1"
                   className="w-full bg-black/40 border border-white/10 rounded-lg py-1.5 px-2.5 text-emerald-300 font-bold text-base focus:outline-none focus:border-emerald-400"
                 />
               </div>
@@ -195,14 +193,14 @@ const SortableSupersetItem: React.FC<SortableSupersetProps> = ({
                 <button
                   onClick={() => onUngroupSuperset(superset.id)}
                   className="p-2 text-gray-400 hover:text-amber-300 hover:bg-white/5 rounded-lg transition-colors"
-                  title="Desagrupar biserie (dejar ejercicios sueltos)"
+                  title="Desagrupar superserie (dejar ejercicios sueltos)"
                 >
                   <Unlink className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => onDeleteSuperset(superset.id)}
                   className="p-2 text-red-400/60 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
-                  title="Eliminar biserie"
+                  title="Eliminar superserie"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -212,14 +210,14 @@ const SortableSupersetItem: React.FC<SortableSupersetProps> = ({
             <textarea
               value={superset.notes || ''}
               onChange={(e) => onUpdateSuperset(superset.id, { notes: e.target.value })}
-              placeholder="Notas de la biserie (ej. 3 rondas en la misma torre, pausa 60-90 s al terminar el par)..."
+              placeholder="Notas de la superserie (ej. en la misma torre, pausa 60-90 s al terminar la ronda)..."
               rows={2}
               className="w-full bg-black/40 border border-white/10 rounded-lg py-2 px-3 text-sm text-gray-300 focus:outline-none focus:border-emerald-400/50 resize-y"
             />
 
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="text-xs text-emerald-400/80 uppercase font-semibold">Rondas</div>
+                <div className="text-xs text-emerald-400/80 uppercase font-semibold">Rondas base</div>
                 <div className="flex items-center gap-2 bg-black/50 rounded-lg p-1">
                   <button
                     onClick={() => onUpdateSuperset(superset.id, { rounds: Math.max(1, superset.rounds - 1) })}
@@ -237,13 +235,13 @@ const SortableSupersetItem: React.FC<SortableSupersetProps> = ({
                 </div>
               </div>
               <span className="text-xs text-gray-400 tabular-nums">
-                {exercises.length} {exercises.length === 1 ? 'ejercicio' : 'ejercicios'}
+                Hasta {maxExerciseRounds} {maxExerciseRounds === 1 ? 'ronda' : 'rondas'} · {exercises.length} {exercises.length === 1 ? 'ejercicio' : 'ejercicios'}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Lista de ejercicios dentro de la biserie */}
+        {/* Lista de ejercicios dentro de la superserie */}
         <div className="space-y-3 pt-3 border-t border-white/10">
           {exercises.map((ex, idx) => (
             <div key={ex.id} className="bg-black/35 border border-white/10 rounded-xl p-3.5 space-y-2.5">
@@ -257,7 +255,7 @@ const SortableSupersetItem: React.FC<SortableSupersetProps> = ({
                     onClick={() => onReorderMember(superset.id, ex.id, -1)}
                     disabled={idx === 0}
                     className="p-1.5 text-gray-400 hover:text-white disabled:opacity-30"
-                    title="Subir en la biserie"
+                    title="Subir en la superserie"
                   >
                     <ArrowUp className="w-3.5 h-3.5" />
                   </button>
@@ -265,14 +263,14 @@ const SortableSupersetItem: React.FC<SortableSupersetProps> = ({
                     onClick={() => onReorderMember(superset.id, ex.id, 1)}
                     disabled={idx === exercises.length - 1}
                     className="p-1.5 text-gray-400 hover:text-white disabled:opacity-30"
-                    title="Bajar en la biserie"
+                    title="Bajar en la superserie"
                   >
                     <ArrowDown className="w-3.5 h-3.5" />
                   </button>
                   <button
                     onClick={() => onDetachExercise(ex.id)}
                     className="p-1.5 text-gray-400 hover:text-amber-300"
-                    title="Sacar de la biserie (dejar suelto)"
+                    title="Sacar de la superserie (dejar suelto)"
                   >
                     <Unlink className="w-3.5 h-3.5" />
                   </button>
@@ -311,12 +309,31 @@ const SortableSupersetItem: React.FC<SortableSupersetProps> = ({
                   className="w-full bg-slate-900/70 border border-white/10 rounded-lg py-1.5 px-2.5 text-xs text-amber-200 placeholder:text-gray-500 tabular-nums focus:outline-none focus:border-amber-400/50"
                 />
               </div>
+
+              <div className="flex items-center justify-between gap-2 pt-1">
+                <span className="text-xs text-gray-400">Rondas de este ejercicio</span>
+                <div className="flex items-center gap-2 bg-black/50 rounded-lg p-1">
+                  <button
+                    onClick={() => onUpdateExercise(ex.id, { sets: Math.max(1, ex.sets - 1) })}
+                    className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-white bg-white/5 rounded-md"
+                  >
+                    -
+                  </button>
+                  <span className="w-6 text-center text-emerald-400 font-bold text-xs tabular-nums">{ex.sets}</span>
+                  <button
+                    onClick={() => onUpdateExercise(ex.id, { sets: ex.sets + 1 })}
+                    className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-white bg-white/5 rounded-md"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
             </div>
           ))}
 
           {exercises.length < 2 && (
             <p className="text-xs text-amber-300/80 px-1">
-              Agregá al menos 2 ejercicios para completar esta biserie.
+              Agregá al menos 2 ejercicios para completar esta superserie.
             </p>
           )}
 
@@ -324,7 +341,7 @@ const SortableSupersetItem: React.FC<SortableSupersetProps> = ({
             onClick={() => onOpenAddExerciseToSuperset(superset)}
             className="w-full py-2.5 min-h-[44px] bg-emerald-400/10 text-emerald-400 border border-emerald-400/25 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 hover:bg-emerald-400/20 transition-colors cursor-pointer"
           >
-            <Plus className="w-4 h-4" /> Agregar ejercicio a {superset.name || 'Biserie'}
+            <Plus className="w-4 h-4" /> Agregar ejercicio a {superset.name || 'Superserie'}
           </button>
         </div>
       </div>
@@ -335,10 +352,10 @@ const SortableSupersetItem: React.FC<SortableSupersetProps> = ({
 export default function EditRoutineView({ routine, exerciseBank, onUpdate, onClose, onDelete }: Props) {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [targetSupersetForAdd, setTargetSupersetForAdd] = useState<SupersetGroup | null>(null);
-  const [isAddBiserieModalOpen, setIsAddBiserieModalOpen] = useState(false);
-  const [newBiserieName, setNewBiserieName] = useState('');
-  const [newBiserieRounds, setNewBiserieRounds] = useState(3);
-  const [newBiserieNotes, setNewBiserieNotes] = useState('');
+  const [isAddSupersetModalOpen, setIsAddSupersetModalOpen] = useState(false);
+  const [newSupersetName, setNewSupersetName] = useState('');
+  const [newSupersetRounds, setNewSupersetRounds] = useState(3);
+  const [newSupersetNotes, setNewSupersetNotes] = useState('');
 
   const [title, setTitle] = useState(routine.title);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -348,7 +365,6 @@ export default function EditRoutineView({ routine, exerciseBank, onUpdate, onClo
   const supersetsMap = routine.supersets || {};
   const supersetsList = Object.values(supersetsMap);
 
-  // Build blocks including any newly created empty superset so user can populate it
   const populatedBlocks = groupExercisesIntoBlocks(activeExercises, supersetsMap);
   const presentSupersetIds = new Set(
     populatedBlocks
@@ -370,12 +386,10 @@ export default function EditRoutineView({ routine, exerciseBank, onUpdate, onClo
     let updatedExercises: Exercise[];
 
     if (existingIdx >= 0) {
-      // Reactivate or update existing entry cleanly
       updatedExercises = routine.exercises.map((ex, i) =>
         i === existingIdx ? { ...newEx, isActive: true } : ex
       );
     } else if (newEx.supersetId) {
-      // Insert right after the last exercise of that superset
       let insertAt = -1;
       routine.exercises.forEach((ex, i) => {
         if (ex.supersetId === newEx.supersetId && ex.isActive !== false) {
@@ -401,7 +415,6 @@ export default function EditRoutineView({ routine, exerciseBank, onUpdate, onClo
   };
 
   const handleRemoveExercise = (exId: string) => {
-    // Deactivate instead of hard-deleting to keep historical logs intact
     const newExs = routine.exercises.map(ex => {
       if (ex.id === exId) {
         const copy = { ...ex, isActive: false };
@@ -418,7 +431,6 @@ export default function EditRoutineView({ routine, exerciseBank, onUpdate, onClo
     if (!target || !target.supersetId) return;
     const sId = target.supersetId;
 
-    // Remove supersetId and move it right after the superset block so blocks stay contiguous
     const withoutTarget = routine.exercises.filter(e => e.id !== exId);
     let lastSupersetIdx = -1;
     withoutTarget.forEach((e, i) => {
@@ -449,7 +461,7 @@ export default function EditRoutineView({ routine, exerciseBank, onUpdate, onClo
     const updatedEx: Exercise = {
       ...target,
       supersetId,
-      sets: superset.rounds
+      sets: target.sets || superset.rounds
     };
 
     const withoutTarget = routine.exercises.filter(e => e.id !== exId);
@@ -486,13 +498,15 @@ export default function EditRoutineView({ routine, exerciseBank, onUpdate, onClo
   const handleUpdateSuperset = (supersetId: string, updates: Partial<SupersetGroup>) => {
     const current = supersetsMap[supersetId];
     if (!current) return;
+    const oldRounds = current.rounds;
     const updatedSuperset = { ...current, ...updates };
     const newSupersets = { ...supersetsMap, [supersetId]: updatedSuperset };
 
     let newExercises = routine.exercises;
+    // Update exercises that followed the base round count, preserving custom ones
     if (updates.rounds !== undefined) {
       newExercises = routine.exercises.map(ex =>
-        ex.supersetId === supersetId && ex.isActive !== false
+        ex.supersetId === supersetId && ex.isActive !== false && ex.sets === oldRounds
           ? { ...ex, sets: updates.rounds! }
           : ex
       );
@@ -518,7 +532,7 @@ export default function EditRoutineView({ routine, exerciseBank, onUpdate, onClo
   const handleDeleteSuperset = (supersetId: string) => {
     const sup = supersetsMap[supersetId];
     const hasMembers = activeExercises.some(ex => ex.supersetId === supersetId);
-    if (hasMembers && !window.confirm(`¿Eliminar "${sup?.name || 'Biserie'}" y quitar sus ejercicios de esta rutina? (Tu historial pasado se conserva intacto)`)) {
+    if (hasMembers && !window.confirm(`¿Eliminar "${sup?.name || 'Superserie'}" y quitar sus ejercicios de esta rutina? (Tu historial pasado se conserva intacto)`)) {
       return;
     }
     const newSupersets = { ...supersetsMap };
@@ -555,21 +569,21 @@ export default function EditRoutineView({ routine, exerciseBank, onUpdate, onClo
     onUpdate({ ...routine, exercises: newExercises });
   };
 
-  const openCreateBiserieModal = () => {
-    setNewBiserieName(`Biserie ${supersetsList.length + 1}`);
-    setNewBiserieRounds(3);
-    setNewBiserieNotes('');
-    setIsAddBiserieModalOpen(true);
+  const openCreateSupersetModal = () => {
+    setNewSupersetName(`Superserie ${supersetsList.length + 1}`);
+    setNewSupersetRounds(3);
+    setNewSupersetNotes('');
+    setIsAddSupersetModalOpen(true);
   };
 
-  const handleCreateBiserie = () => {
-    const trimmedName = newBiserieName.trim() || `Biserie ${supersetsList.length + 1}`;
+  const handleCreateSuperset = () => {
+    const trimmedName = newSupersetName.trim() || `Superserie ${supersetsList.length + 1}`;
     const newId = 'superset_' + Date.now();
     const newSuperset: SupersetGroup = {
       id: newId,
       name: trimmedName,
-      rounds: Math.max(1, newBiserieRounds),
-      notes: newBiserieNotes.trim()
+      rounds: Math.max(1, newSupersetRounds),
+      notes: newSupersetNotes.trim()
     };
 
     onUpdate({
@@ -579,7 +593,7 @@ export default function EditRoutineView({ routine, exerciseBank, onUpdate, onClo
         [newId]: newSuperset
       }
     });
-    setIsAddBiserieModalOpen(false);
+    setIsAddSupersetModalOpen(false);
   };
 
   const handleDelete = () => {
@@ -635,7 +649,7 @@ export default function EditRoutineView({ routine, exerciseBank, onUpdate, onClo
       </div>
 
       <div className="mb-6 text-sm text-gray-400">
-        Arrastrá para reordenar ejercicios o biseries completas. También podés definir objetivos de peso o reps para la próxima sesión.
+        Arrastrá para reordenar ejercicios o superseries completas. Podés ajustar rondas por ejercicio y definir objetivos de peso o reps para la próxima sesión.
       </div>
 
       <Reorder.Group axis="y" values={blocks} onReorder={handleReorderBlocks} className="space-y-4">
@@ -687,10 +701,10 @@ export default function EditRoutineView({ routine, exerciseBank, onUpdate, onClo
         </button>
 
         <button
-          onClick={openCreateBiserieModal}
+          onClick={openCreateSupersetModal}
           className="w-full py-3.5 min-h-[48px] bg-slate-900 text-white border border-emerald-400/40 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-400/10 transition-all cursor-pointer"
         >
-          <Layers className="w-5 h-5 text-emerald-400" /> Añadir Biserie
+          <Layers className="w-5 h-5 text-emerald-400" /> Añadir Superserie
         </button>
       </div>
 
@@ -702,22 +716,22 @@ export default function EditRoutineView({ routine, exerciseBank, onUpdate, onClo
           }}
           onAdd={handleAddExercise}
           exerciseBank={exerciseBank}
-          fixedSets={targetSupersetForAdd?.rounds}
+          defaultSets={targetSupersetForAdd?.rounds}
           supersetId={targetSupersetForAdd?.id}
           supersetName={targetSupersetForAdd?.name}
           activeExerciseIds={activeExercises.map(e => e.id)}
         />
       )}
 
-      {isAddBiserieModalOpen && (
+      {isAddSupersetModalOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[1000] p-4">
           <div className="bg-slate-900 border border-white/10 rounded-2xl p-6 w-full max-w-[400px]">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-semibold text-emerald-400 flex items-center gap-2">
-                <Layers className="w-5 h-5" /> Nueva Biserie
+                <Layers className="w-5 h-5" /> Nueva Superserie
               </h3>
               <button
-                onClick={() => setIsAddBiserieModalOpen(false)}
+                onClick={() => setIsAddSupersetModalOpen(false)}
                 className="p-2 text-gray-400 hover:text-white rounded-lg"
               >
                 <X className="w-5 h-5" />
@@ -729,31 +743,32 @@ export default function EditRoutineView({ routine, exerciseBank, onUpdate, onClo
                 <label className="block text-sm text-gray-400 mb-1.5">Nombre o Número *</label>
                 <input
                   type="text"
-                  value={newBiserieName}
-                  onChange={(e) => setNewBiserieName(e.target.value)}
-                  placeholder="Ej. Biserie 1"
+                  value={newSupersetName}
+                  onChange={(e) => setNewSupersetName(e.target.value)}
+                  placeholder="Ej. Superserie 1"
                   className="w-full min-h-[44px] bg-black/30 border border-white/10 rounded-lg p-2.5 text-white focus:outline-none focus:border-emerald-400"
                 />
               </div>
 
               <div>
-                <label className="block text-sm text-gray-400 mb-1.5">Cantidad de Rondas *</label>
+                <label className="block text-sm text-gray-400 mb-1.5">Rondas base sugeridas *</label>
                 <input
                   type="number"
                   min={1}
-                  value={newBiserieRounds}
-                  onChange={(e) => setNewBiserieRounds(Math.max(1, parseInt(e.target.value) || 1))}
+                  value={newSupersetRounds}
+                  onChange={(e) => setNewSupersetRounds(Math.max(1, parseInt(e.target.value) || 1))}
                   className="w-full min-h-[44px] bg-black/30 border border-white/10 rounded-lg p-2.5 text-white tabular-nums focus:outline-none focus:border-emerald-400"
                 />
+                <p className="text-xs text-gray-500 mt-1">Después podés cambiar las rondas de cada ejercicio individualmente.</p>
               </div>
 
               <div>
-                <label className="block text-sm text-gray-400 mb-1.5">Notas de la Biserie (Opcional)</label>
+                <label className="block text-sm text-gray-400 mb-1.5">Notas de la Superserie (Opcional)</label>
                 <textarea
-                  value={newBiserieNotes}
-                  onChange={(e) => setNewBiserieNotes(e.target.value)}
+                  value={newSupersetNotes}
+                  onChange={(e) => setNewSupersetNotes(e.target.value)}
                   rows={3}
-                  placeholder="Ej. 3 rondas en la misma torre. Pausa 60-90 s al terminar el par..."
+                  placeholder="Ej. 4 rondas en la misma torre. Pausa 60-90 s al terminar la ronda..."
                   className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-emerald-400 resize-y"
                 />
               </div>
@@ -761,16 +776,16 @@ export default function EditRoutineView({ routine, exerciseBank, onUpdate, onClo
 
             <div className="flex justify-end gap-3 mt-6">
               <button
-                onClick={() => setIsAddBiserieModalOpen(false)}
+                onClick={() => setIsAddSupersetModalOpen(false)}
                 className="px-4 py-2.5 min-h-[44px] rounded-lg border border-gray-600 text-gray-300 hover:bg-white/5"
               >
                 Cancelar
               </button>
               <button
-                onClick={handleCreateBiserie}
+                onClick={handleCreateSuperset}
                 className="px-5 py-2.5 min-h-[44px] rounded-lg bg-emerald-400 text-black font-semibold hover:brightness-110"
               >
-                Crear Biserie
+                Crear Superserie
               </button>
             </div>
           </div>

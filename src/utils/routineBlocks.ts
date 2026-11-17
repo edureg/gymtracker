@@ -19,7 +19,7 @@ export function groupExercisesIntoBlocks(
       } else {
         const meta = supersets?.[ex.supersetId] || {
           id: ex.supersetId,
-          name: 'Biserie',
+          name: 'Superserie',
           rounds: ex.sets || 3,
           notes: ''
         };
